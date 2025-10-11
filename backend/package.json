@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@huggingface/inference": "^4.11.1",
+    "bcryptjs": "^3.0.2",
+    "express-rate-limit": "^8.1.0",
+    "nodemailer": "^7.0.9",
+    "otp-generator": "^4.0.1",
+    "socket.io": "^4.8.1"
+  }
+}
