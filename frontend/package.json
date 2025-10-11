@@ -7,7 +7,10 @@
     "dev": "next dev",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test '__tests__/**/*.test.mjs'",
+    "test:coverage": "node --test --experimental-test-coverage __tests__",
+    "test:watch": "node --test --watch __tests__"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
