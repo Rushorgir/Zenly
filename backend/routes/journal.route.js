@@ -19,7 +19,7 @@ const router = express.Router();
 
 // Journal CRUD (all require authentication)
 router.post("/", authMiddleware, validateJournal, journalAILimiter, createJournal);
-router.get("/", authMiddleware, listJournals);
+router.get("/", authMiddleware, journalAILimiter, listJournals);
 router.get("/stats", authMiddleware, getJournalStats); // Must come before /:id
 router.get("/:id", authMiddleware, getJournal);
 router.get("/:id/insights", authMiddleware, getJournalInsights);
