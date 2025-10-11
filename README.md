@@ -158,6 +158,13 @@ See [`LICENSE`](./LICENSE) for details.
 
 ---
 
+## 🤝 Contributing & Community
+
+- Please read our [Contributing Guide](./CONTRIBUTING.md) for setup, workflow, and PR expectations
+- See our [Code of Conduct](./CODE_OF_CONDUCT.md) for community standards
+
+---
+
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:54E3AB,100:1ABC9C&height=100&section=footer"/>
 </p>
