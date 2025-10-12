@@ -266,7 +266,7 @@ class StreamingService {
       console.log(`[Streaming] Journal analysis stream completed: ${streamId}`);
 
     } catch (error) {
-      console.error(`[Streaming] Journal analysis error: ${streamId}`, error);
+      console.error('[Streaming] Journal analysis error: %s', streamId, error);
       
       this.sendEvent(res, 'error', {
         error: error.message,
