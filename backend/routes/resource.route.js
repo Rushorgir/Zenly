@@ -28,8 +28,8 @@ router.post("/:id/view", resourceViewLimiter, optionalAuth, incrementViewCount);
 router.post("/:id/helpful", resourceHelpfulLimiter, optionalAuth, markAsHelpful);
 
 // Admin-only resource mutations with auth + role check + limiter
-router.post("/admin/create", authMiddleware, requireRole("admin"), resourceMutationLimiter, createResource);
-router.patch("/admin/:id", authMiddleware, requireRole("admin"), resourceMutationLimiter, updateResource);
-router.delete("/admin/:id", authMiddleware, requireRole("admin"), resourceMutationLimiter, deleteResource);
+router.post("/admin/create", resourceMutationLimiter, authMiddleware, requireRole("admin"), createResource);
+router.patch("/admin/:id", resourceMutationLimiter, authMiddleware, requireRole("admin"), updateResource);
+router.delete("/admin/:id", resourceMutationLimiter, authMiddleware, requireRole("admin"), deleteResource);
 
 export default router;
