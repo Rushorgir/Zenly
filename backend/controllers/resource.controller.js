@@ -1,5 +1,6 @@
 import { Resource } from "../models/resource.model.js";
 import AnalyticsEvent from "../models/analysticsEvent.model.js";
+import _ from "lodash";
 
 export const getFeaturedResources = async (req, res) => {
   try {
@@ -32,7 +33,8 @@ export const searchResources = async (req, res) => {
     }
     
     // Search only by title and tags (case-insensitive)
-    const searchRegex = new RegExp(query, 'i');
+    const safeQuery = _.escapeRegExp(query);
+    const searchRegex = new RegExp(safeQuery, 'i');
     
     const resources = await Resource.find({
       $or: [

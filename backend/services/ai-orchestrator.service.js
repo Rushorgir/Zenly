@@ -75,7 +75,7 @@ class AIOrchestrator {
       // Generate suggested actions based on analysis
       analysis.suggestedActions = this.generateSuggestedActions(analysis);
 
-      console.log(`[AI Orchestrator] Journal analysis complete: ${journalId}`, {
+      console.log('[AI Orchestrator] Journal analysis complete: %s', journalId, {
         sentimentScore: analysis.sentiment.score,
         riskLevel: analysis.risk.level,
         insightsCount: analysis.insights.length
@@ -84,7 +84,7 @@ class AIOrchestrator {
       return analysis;
 
     } catch (error) {
-      console.error(`[AI Orchestrator] Journal analysis error: ${journalId}`, error);
+      console.error('[AI Orchestrator] Journal analysis error: %s', journalId, error);
       throw error;
     }
   }
