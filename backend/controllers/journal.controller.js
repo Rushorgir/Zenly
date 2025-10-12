@@ -136,7 +136,7 @@ async function analyzeJournalInBackground(journalId, _userId) {
       { new: true }
     );
 
-    console.log(`[Journal Controller] Analysis complete: ${journalId}`, {
+    console.log('[Journal Controller] Analysis complete: %s', journalId, {
       sentiment: analysis.sentiment.label,
       riskLevel: analysis.risk.level
     });
@@ -146,7 +146,7 @@ async function analyzeJournalInBackground(journalId, _userId) {
     console.log(`[Journal Controller] Journal analysis complete - ready for reflection messages`);
 
   } catch (error) {
-    console.error(`[Journal Controller] Background analysis error: ${journalId}`, error);
+    console.error('[Journal Controller] Background analysis error: %s', journalId, error);
 
     // Update journal status to error
     await JournalEntry.findByIdAndUpdate(journalId, {
