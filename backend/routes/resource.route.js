@@ -1,5 +1,11 @@
 import express from "express";
-import { optionalAuth } from "../middleware/auth.middleware.js";
+import authMiddleware, { optionalAuth, requireRole } from "../middleware/auth.middleware.js";
+import { 
+  resourceSearchLimiter, 
+  resourceViewLimiter, 
+  resourceHelpfulLimiter, 
+  resourceMutationLimiter 
+} from "../middleware/resource-rate-limiter.middleware.js";
 import {
   getFeaturedResources,
   searchResources,
@@ -15,14 +21,15 @@ import {
 const router = express.Router();
 
 router.get("/featured", getFeaturedResources);
-router.get("/search", searchResources);
+router.get("/search", resourceSearchLimiter, searchResources);
 router.get("/all", getAllResources);
 router.get("/:id", getResourceById);
-router.post("/:id/view", optionalAuth, incrementViewCount);
-router.post("/:id/helpful", markAsHelpful);
+router.post("/:id/view", resourceViewLimiter, optionalAuth, incrementViewCount);
+router.post("/:id/helpful", optionalAuth, resourceHelpfulLimiter, markAsHelpful);
 
-router.post("/admin/create", createResource);
-router.patch("/admin/:id", updateResource);
-router.delete("/admin/:id", deleteResource);
+// Admin-only resource mutations with auth + role check + limiter
+router.post("/admin/create", authMiddleware, requireRole("admin"), resourceMutationLimiter, createResource);
+router.patch("/admin/:id", authMiddleware, requireRole("admin"), resourceMutationLimiter, updateResource);
+router.delete("/admin/:id", authMiddleware, requireRole("admin"), resourceMutationLimiter, deleteResource);
 
 export default router;
