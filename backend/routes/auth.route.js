@@ -12,7 +12,15 @@ import {
 } from "../controllers/auth.controller.js";
 import { validateSignup, validateLogin } from "../middleware/validation.middleware.js";
 import authMiddleware from "../middleware/auth.middleware.js";
-import { signupLimiter, otpRequestLimiter, otpVerifyLimiter } from "../middleware/rateLimiter.middleware.js";
+import { 
+    signupLimiter, 
+    otpRequestLimiter, 
+    otpVerifyLimiter,
+    loginLimiter,
+    tokenRefreshLimiter,
+    passwordResetRequestLimiter,
+    passwordResetLimiter,
+} from "../middleware/rateLimiter.middleware.js";
 
 const router = express.Router();
 
@@ -22,12 +30,12 @@ router.post("/verify-otp", otpVerifyLimiter, verifyOTP);
 router.post("/resend-otp", otpRequestLimiter, resendOTP);
 
 // Login & Tokens
-router.post("/login", validateLogin, login);
-router.post("/refresh", refresh);
+router.post("/login", loginLimiter, validateLogin, login);
+router.post("/refresh", tokenRefreshLimiter, refresh);
 
 // Password Reset
-router.post("/request-password-reset", requestPasswordReset);
-router.post("/reset-password", resetPassword);
+router.post("/request-password-reset", passwordResetRequestLimiter, requestPasswordReset);
+router.post("/reset-password", passwordResetLimiter, resetPassword);
 
 // User Info
 router.get("/me", authMiddleware, getMe);

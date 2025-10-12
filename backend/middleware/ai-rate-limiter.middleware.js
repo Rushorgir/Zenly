@@ -48,6 +48,35 @@ export const journalAILimiter = rateLimit({
   },
 });
 
+// Read/list conversation data - per user
+export const aiReadLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 240, // up to 240 reads per minute per user
+  message: { error: 'Too many AI read requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId || req.ip,
+});
+
+// Conversation CRUD - per user
+export const aiConversationMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // up to 100 mutations per 15 minutes per user
+  message: { error: 'Too many conversation changes. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId || req.ip,
+});
+
+// Feedback submissions - per user
+export const aiFeedbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 120, // up to 120 feedback actions per 15 minutes per user
+  message: { error: 'Too many feedback submissions. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId || req.ip,
+});
 // Daily limit tracker (in-memory, could be moved to Redis in production)
 const dailyUsageTracker = new Map();
 
@@ -116,4 +145,7 @@ export default {
   aiChatLimiter,
   journalAILimiter,
   dailyAILimiter,
+  aiReadLimiter,
+  aiConversationMutationLimiter,
+  aiFeedbackLimiter,
 };
