@@ -24,7 +24,7 @@ class StreamingService {
   async streamAIResponse(res, conversationId, userMessage, userId) {
     const streamId = `${conversationId}-${Date.now()}`;
     
-    console.log(`[Streaming] Starting SSE stream: ${streamId}`);
+  console.log('[Streaming] Starting SSE stream: %s', streamId);
 
     // Configure SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -182,14 +182,14 @@ class StreamingService {
         }
       }
 
-      console.log(`[Streaming] Stream completed: ${streamId}`, {
+      console.log('[Streaming] Stream completed: %s', streamId, {
         chunks: chunkCount,
         responseLength: fullResponse.length,
         crisis: crisisDetected
       });
 
     } catch (error) {
-      console.error(`[Streaming] Stream error: ${streamId}`, error);
+  console.error('[Streaming] Stream error: %s', streamId, error);
 
       // Send error event
       this.sendEvent(res, 'error', {
@@ -215,7 +215,7 @@ class StreamingService {
       // Cleanup
       this.activeStreams.delete(streamId);
       res.end();
-      console.log(`[Streaming] Stream closed: ${streamId}`);
+  console.log('[Streaming] Stream closed: %s', streamId);
     }
   }
 
@@ -225,7 +225,7 @@ class StreamingService {
   async streamJournalAnalysis(res, journalId, _userId) {
     const streamId = `journal-${journalId}-${Date.now()}`;
     
-    console.log(`[Streaming] Starting journal analysis stream: ${streamId}`);
+  console.log('[Streaming] Starting journal analysis stream: %s', streamId);
 
     // Configure SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -263,10 +263,10 @@ class StreamingService {
         analysis
       });
 
-      console.log(`[Streaming] Journal analysis stream completed: ${streamId}`);
+  console.log('[Streaming] Journal analysis stream completed: %s', streamId);
 
     } catch (error) {
-      console.error(`[Streaming] Journal analysis error: ${streamId}`, error);
+  console.error('[Streaming] Journal analysis error: %s', streamId, error);
       
       this.sendEvent(res, 'error', {
         error: error.message,
@@ -275,7 +275,7 @@ class StreamingService {
 
     } finally {
       res.end();
-      console.log(`[Streaming] Journal analysis stream closed: ${streamId}`);
+  console.log('[Streaming] Journal analysis stream closed: %s', streamId);
     }
   }
 
@@ -340,7 +340,7 @@ class StreamingService {
    * Close all streams (for shutdown)
    */
   closeAllStreams() {
-    console.log(`[Streaming] Closing all active streams (${this.activeStreams.size})`);
+  console.log('[Streaming] Closing all active streams (%d)', this.activeStreams.size);
     this.activeStreams.clear();
   }
 
@@ -354,7 +354,7 @@ class StreamingService {
     for (const [streamId, stream] of this.activeStreams.entries()) {
       const age = now - stream.startedAt.getTime();
       if (age > maxAge) {
-        console.log(`[Streaming] Removing stale stream: ${streamId}`);
+        console.log('[Streaming] Removing stale stream: %s', streamId);
         this.activeStreams.delete(streamId);
       }
     }
