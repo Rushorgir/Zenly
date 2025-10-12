@@ -25,7 +25,7 @@ router.get("/search", resourceSearchLimiter, searchResources);
 router.get("/all", getAllResources);
 router.get("/:id", getResourceById);
 router.post("/:id/view", resourceViewLimiter, optionalAuth, incrementViewCount);
-router.post("/:id/helpful", optionalAuth, resourceHelpfulLimiter, markAsHelpful);
+router.post("/:id/helpful", resourceHelpfulLimiter, optionalAuth, markAsHelpful);
 
 // Admin-only resource mutations with auth + role check + limiter
 router.post("/admin/create", authMiddleware, requireRole("admin"), resourceMutationLimiter, createResource);
