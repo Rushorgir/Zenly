@@ -13,7 +13,13 @@ import {
     updateConversation
 } from "../controllers/ai.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
-import { aiChatLimiter, dailyAILimiter, aiReadLimiter, aiConversationMutationLimiter, aiFeedbackLimiter } from "../middleware/ai-rate-limiter.middleware.js";
+import {
+    aiChatLimiter,
+    dailyAILimiter,
+    aiReadLimiter,
+    aiConversationMutationLimiter,
+    aiFeedbackLimiter
+} from "../middleware/ai-rate-limiter.middleware.js";
 
 const router = express.Router();
 
