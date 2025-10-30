@@ -21,7 +21,7 @@
     "eslint-plugin-react": "^7.32.2",
     "husky": "^8.0.0",
     "lint-staged": "^16.2.3",
-    "next": "^14.2.16"
+    "next": "^14.2.32"
   },
   "husky": {
     "hooks": {
