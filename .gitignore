@@ -29,4 +29,4 @@ next-env.d.ts
 *.log
 
 /.github/
-AGENTS.md
+AGENTS.mddocs/api
