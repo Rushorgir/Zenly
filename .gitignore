@@ -29,4 +29,6 @@ next-env.d.ts
 *.log
 
 /.github/
-AGENTS.mddocs/api
+
+# Generated API documentation
+docs/api/
