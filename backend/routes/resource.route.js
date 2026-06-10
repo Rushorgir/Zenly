@@ -2,6 +2,10 @@ import express from 'express';
 import { optionalAuth } from '../middleware/auth.middleware.js';
 import rateLimit from 'express-rate-limit';
 import {
+  adminActionLimiter
+} from '../middleware/rateLimiter.middleware.js';
+import { sanitizePayload } from '../middleware/sanitize.middleware.js';
+import {
   getFeaturedResources,
   searchResources,
   getResourceById,
@@ -29,8 +33,10 @@ router.get('/:id', getResourceById);
 router.post('/:id/view', optionalAuth, incrementViewCount);
 router.post('/:id/helpful', markAsHelpful);
 
-router.post('/admin/create', createResource);
-router.patch('/admin/:id', updateResource);
+router.post('/admin/create', adminActionLimiter, sanitizePayload({ urlFields: ['url', 'thumbnailUrl'] }), createResource);
+router.patch('/admin/:id', adminActionLimiter, sanitizePayload({ urlFields: ['url', 'thumbnailUrl'] }), updateResource);
 router.delete('/admin/:id', deleteResourceLimiter, deleteResource);
+
+
 
 export default router;

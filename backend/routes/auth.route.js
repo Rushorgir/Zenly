@@ -15,7 +15,9 @@ import authMiddleware from '../middleware/auth.middleware.js';
 import {
   signupLimiter,
   otpRequestLimiter,
-  otpVerifyLimiter
+  otpVerifyLimiter,
+  loginLimiter,
+  passwordResetLimiter
 } from '../middleware/rateLimiter.middleware.js';
 
 const router = express.Router();
@@ -26,12 +28,13 @@ router.post('/verify-otp', otpVerifyLimiter, verifyOTP);
 router.post('/resend-otp', otpRequestLimiter, resendOTP);
 
 // Login & Tokens
-router.post('/login', validateLogin, login);
+router.post('/login', loginLimiter, validateLogin, login);
 router.post('/refresh', refresh);
 
 // Password Reset
-router.post('/request-password-reset', requestPasswordReset);
-router.post('/reset-password', resetPassword);
+router.post('/request-password-reset', passwordResetLimiter, requestPasswordReset);
+router.post('/reset-password', passwordResetLimiter, resetPassword);
+
 
 // User Info
 router.get('/me', authMiddleware, getMe);

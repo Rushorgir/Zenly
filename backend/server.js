@@ -8,6 +8,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import { globalLimiter } from './middleware/rateLimiter.middleware.js';
+
 
 import authRoutes from './routes/auth.route.js';
 import userRoutes from './routes/user.route.js';
@@ -83,7 +85,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(globalLimiter);
 app.use(express.json({ limit: '10mb' })); // Increased limit for image uploads
+
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
