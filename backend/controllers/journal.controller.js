@@ -1,19 +1,17 @@
 /**
- * Journal Controller (REDESIGNED)
- * 
- * Complete rewrite with:
- * - Server-Sent Events for real-time analysis
- * - Optimized error handling
- * - Better validation
- * - Transaction support
- * - Queue-based AI processing
+ * Journal Controller (Supabase Migrated)
  */
 
-import JournalEntry from '../models/journalEntry.model.js';
-import AnalyticsEvent from '../models/analysticsEvent.model.js';
-import AIConversation from '../models/aiConversation.model.js';
+import { supabase } from '../config/supabase.js';
 import aiOrchestratorService from '../services/ai-orchestrator.service.js';
 import streamingService from '../services/streaming.service.js';
+
+// Helper to map DB row to client format
+const formatJournal = (j) => {
+  if (!j) return null;
+  const { id, userId, ...rest } = j;
+  return { ...rest, _id: id, userId };
+};
 
 /**
  * Create a new journal entry
@@ -24,49 +22,46 @@ export const createJournal = async (req, res) => {
     const { content, mood, tags } = req.body;
     const userId = req.userId;
 
-    // Validation
     if (!content || content.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Journal content is required'
-      });
+      return res.status(400).json({ success: false, error: 'Journal content is required' });
     }
 
     if (content.length > 10000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Journal content too long (max 10,000 characters)'
-      });
+      return res
+        .status(400)
+        .json({ success: false, error: 'Journal content too long (max 10,000 characters)' });
     }
 
     if (mood && (mood < 1 || mood > 10)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Mood must be between 1 and 10'
-      });
+      return res.status(400).json({ success: false, error: 'Mood must be between 1 and 10' });
     }
 
     console.log(`[Journal Controller] Creating journal for user: ${userId}`);
 
-    // Create journal entry
-    const journal = await JournalEntry.create({
-      userId,
-      content: content.trim(),
-      mood: mood || null,
-      tags: tags || [],
-      status: 'analyzing',
-      createdAt: new Date()
-    });
-
-    console.log(`[Journal Controller] Journal created: ${journal._id}`);
-
-    // Log analytics event for recent activity
-    try {
-      await AnalyticsEvent.create({
+    const { data: journal, error } = await supabase
+      .from('journal_entries')
+      .insert({
         userId,
-        type: 'journal.created',
+        content: content.trim(),
+        mood: mood || null,
+        tags: tags || [],
+        status: 'analyzing',
+        createdAt: new Date().toISOString()
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[Journal Controller] Journal created: ${journal.id}`);
+
+    // Log analytics event
+    try {
+      await supabase.from('analytics_events').insert({
+        userId,
+        name: 'journal.created',
         meta: {
-          journalId: journal._id,
+          journalId: journal.id,
           mood: mood || null,
           preview: content.trim().slice(0, 80)
         }
@@ -75,25 +70,16 @@ export const createJournal = async (req, res) => {
       console.warn('[Journal Controller] Failed to log journal.created event', e?.message);
     }
 
-    // Start AI analysis in background (don't await)
-    analyzeJournalInBackground(journal._id, userId);
+    // Start AI analysis in background
+    analyzeJournalInBackground(journal.id, userId);
 
-    // Return immediately with journal
     res.status(201).json({
       success: true,
       message: 'Journal created successfully',
-      journal: {
-        _id: journal._id,
-        content: journal.content,
-        mood: journal.mood,
-        tags: journal.tags,
-        status: 'analyzing',
-        createdAt: journal.createdAt
-      },
+      journal: formatJournal(journal),
       analysisStatus: 'processing',
       estimatedTime: '5-15 seconds'
     });
-
   } catch (error) {
     console.error('[Journal Controller] Create journal error:', error);
     res.status(500).json({
@@ -105,22 +91,17 @@ export const createJournal = async (req, res) => {
 };
 
 /**
- * Background AI analysis function
- */
-/**
  * Analyze journal in background (async)
  */
 async function analyzeJournalInBackground(journalId, _userId) {
   try {
     console.log(`[Journal Controller] Starting background analysis: ${journalId}`);
 
-    // Perform AI analysis
     const analysis = await aiOrchestratorService.analyzeJournal(journalId);
 
-    // Update journal with analysis results
-    await JournalEntry.findByIdAndUpdate(
-      journalId,
-      {
+    await supabase
+      .from('journal_entries')
+      .update({
         status: 'analyzed',
         aiAnalysis: {
           summary: analysis.summary,
@@ -129,33 +110,26 @@ async function analyzeJournalInBackground(journalId, _userId) {
           riskAssessment: analysis.risk,
           themes: analysis.risk.factors || [],
           suggestedActions: analysis.suggestedActions,
-          processedAt: new Date(),
+          processedAt: new Date().toISOString(),
           model: process.env.HUGGINGFACE_MODEL || 'zai-org/GLM-4.6'
         }
-      },
-      { new: true }
-    );
+      })
+      .eq('id', journalId);
 
-    console.log('[Journal Controller] Analysis complete: %s', journalId, {
-      sentiment: analysis.sentiment.label,
-      riskLevel: analysis.risk.level
-    });
-
-    // NO LONGER creating a separate conversation!
-    // Messages will be stored directly in the journal's reflectionMessages array
-    console.log(`[Journal Controller] Journal analysis complete - ready for reflection messages`);
-
+    console.log('[Journal Controller] Analysis complete: %s', journalId);
   } catch (error) {
     console.error('[Journal Controller] Background analysis error: %s', journalId, error);
 
-    // Update journal status to error
-    await JournalEntry.findByIdAndUpdate(journalId, {
-      status: 'error',
-      aiAnalysis: {
-        error: error.message,
-        processedAt: new Date()
-      }
-    });
+    await supabase
+      .from('journal_entries')
+      .update({
+        status: 'error',
+        aiAnalysis: {
+          error: error.message,
+          processedAt: new Date().toISOString()
+        }
+      })
+      .eq('id', journalId);
   }
 }
 
@@ -168,27 +142,22 @@ export const streamJournalAnalysis = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    // Verify journal ownership
-    const journal = await JournalEntry.findOne({ _id: id, userId });
+    const { data: journal } = await supabase
+      .from('journal_entries')
+      .select('id')
+      .eq('id', id)
+      .eq('userId', userId)
+      .single();
 
     if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
-    // Stream the analysis
     await streamingService.streamJournalAnalysis(res, id, userId);
-
   } catch (error) {
     console.error('[Journal Controller] Stream analysis error:', error);
-    
     if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to stream analysis'
-      });
+      res.status(500).json({ success: false, error: 'Failed to stream analysis' });
     }
   }
 };
@@ -202,40 +171,22 @@ export const getJournal = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    const journal = await JournalEntry.findOne({
-      _id: id,
-      userId,
-      deletedAt: null
-    }).populate('conversationId', 'title summary status messageCount');
+    const { data: journal, error } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .single();
 
-    if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+    if (error || !journal) {
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
-    res.json({
-      success: true,
-      journal: {
-        _id: journal._id,
-        content: journal.content,
-        mood: journal.mood,
-        tags: journal.tags,
-        status: journal.status,
-        aiAnalysis: journal.aiAnalysis,
-        conversation: journal.conversationId,
-        createdAt: journal.createdAt,
-        updatedAt: journal.updatedAt
-      }
-    });
-
+    res.json({ success: true, journal: formatJournal(journal) });
   } catch (error) {
     console.error('[Journal Controller] Get journal error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve journal'
-    });
+    res.status(500).json({ success: false, error: 'Failed to retrieve journal' });
   }
 };
 
@@ -256,60 +207,47 @@ export const listJournals = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    // Build query
-    const query = {
-      userId,
-      deletedAt: null
-    };
+    let query = supabase
+      .from('journal_entries')
+      .select('*', { count: 'exact' })
+      .eq('userId', userId)
+      .is('deletedAt', null);
 
+    if (status) query = query.eq('status', status);
+    // PostgREST JSON querying for sentiment and risk level
+    if (sentiment) query = query.eq('aiAnalysis->sentiment->>label', sentiment);
+    if (riskLevel) query = query.eq('aiAnalysis->riskAssessment->>level', riskLevel);
+
+    // Apply sorting
+    const isAscending = sortOrder !== 'desc';
+    query = query.order(sortBy, { ascending: isAscending });
+
+    // Handle cursor pagination
     if (cursor) {
-      query._id = { $lt: cursor };
+      query = query.lt(sortBy, cursor); // assuming sorting by ID or Date, exact implementation may vary
     }
 
-    if (status) {
-      query.status = status;
-    }
+    const { data: journals, count, error } = await query.limit(parseInt(limit) + 1);
 
-    if (sentiment) {
-      query['aiAnalysis.sentiment.label'] = sentiment;
-    }
+    if (error) throw error;
 
-    if (riskLevel) {
-      query['aiAnalysis.riskAssessment.level'] = riskLevel;
-    }
-
-    // Execute query
-    const journals = await JournalEntry.find(query)
-      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
-      .limit(parseInt(limit) + 1)
-      .select('-__v')
-      .lean();
-
-    // Check if there are more results
     const hasMore = journals.length > parseInt(limit);
     const results = hasMore ? journals.slice(0, -1) : journals;
-    const nextCursor = hasMore ? results[results.length - 1]._id : null;
-
-    // Get total count (for stats)
-    const total = await JournalEntry.countDocuments({ userId, deletedAt: null });
+    const nextCursor = hasMore ? results[results.length - 1][sortBy] : null;
 
     res.json({
       success: true,
-      journals: results,
+      journals: results.map(formatJournal),
       pagination: {
         nextCursor,
         hasMore,
-        total,
+        total: count,
         limit: parseInt(limit)
       }
     });
-
   } catch (error) {
     console.error('[Journal Controller] List journals error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve journals'
-    });
+    res.status(500).json({ success: false, error: 'Failed to retrieve journals' });
   }
 };
 
@@ -323,40 +261,39 @@ export const updateJournal = async (req, res) => {
     const userId = req.userId;
     const { content, mood, tags } = req.body;
 
-    const journal = await JournalEntry.findOne({ _id: id, userId, deletedAt: null });
+    const { data: journal } = await supabase
+      .from('journal_entries')
+      .select('content')
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .single();
 
     if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
-    // Check if content changed
     const contentChanged = content && content.trim() !== journal.content;
-
-    // Update journal
-    const updateData = {
-      updatedAt: new Date()
-    };
+    const updateData = { updatedAt: new Date().toISOString() };
 
     if (content) updateData.content = content.trim();
     if (mood !== undefined) updateData.mood = mood;
     if (tags) updateData.tags = tags;
 
-    // If content changed, re-trigger analysis
     if (contentChanged) {
       updateData.status = 'analyzing';
-      updateData.aiAnalysis = null; // Clear old analysis
+      updateData.aiAnalysis = null;
     }
 
-    const updatedJournal = await JournalEntry.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true }
-    );
+    const { data: updatedJournal, error } = await supabase
+      .from('journal_entries')
+      .update(updateData)
+      .eq('id', id)
+      .select('*')
+      .single();
 
-    // Re-analyze if content changed
+    if (error) throw error;
+
     if (contentChanged) {
       analyzeJournalInBackground(id, userId);
     }
@@ -364,16 +301,12 @@ export const updateJournal = async (req, res) => {
     res.json({
       success: true,
       message: 'Journal updated successfully',
-      journal: updatedJournal,
+      journal: formatJournal(updatedJournal),
       reanalysis: contentChanged
     });
-
   } catch (error) {
     console.error('[Journal Controller] Update journal error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update journal'
-    });
+    res.status(500).json({ success: false, error: 'Failed to update journal' });
   }
 };
 
@@ -386,38 +319,19 @@ export const deleteJournal = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    const journal = await JournalEntry.findOne({ _id: id, userId, deletedAt: null });
+    const { error } = await supabase
+      .from('journal_entries')
+      .update({ deletedAt: new Date().toISOString() })
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null);
 
-    if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
-    }
+    if (error) throw error;
 
-    // Soft delete
-    await JournalEntry.findByIdAndUpdate(id, {
-      deletedAt: new Date()
-    });
-
-    // Also delete associated conversation (optional)
-    if (journal.conversationId) {
-      await AIConversation.findByIdAndUpdate(journal.conversationId, {
-        status: 'archived'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Journal deleted successfully'
-    });
-
+    res.json({ success: true, message: 'Journal deleted successfully' });
   } catch (error) {
     console.error('[Journal Controller] Delete journal error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete journal'
-    });
+    res.status(500).json({ success: false, error: 'Failed to delete journal' });
   }
 };
 
@@ -430,53 +344,34 @@ export const getJournalInsights = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    const journal = await JournalEntry.findOne({
-      _id: id,
-      userId,
-      deletedAt: null
-    }).select('aiAnalysis status');
+    const { data: journal, error } = await supabase
+      .from('journal_entries')
+      .select('aiAnalysis, status')
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .single();
 
-    if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+    if (error || !journal) {
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
     if (journal.status === 'analyzing') {
-      return res.json({
-        success: true,
-        status: 'processing',
-        message: 'Analysis in progress'
-      });
+      return res.json({ success: true, status: 'processing', message: 'Analysis in progress' });
     }
 
     if (!journal.aiAnalysis) {
-      return res.json({
-        success: true,
-        status: 'pending',
-        message: 'Analysis not yet available'
-      });
+      return res.json({ success: true, status: 'pending', message: 'Analysis not yet available' });
     }
 
     res.json({
       success: true,
       status: 'complete',
-      insights: {
-        summary: journal.aiAnalysis.summary,
-        insights: journal.aiAnalysis.insights,
-        sentiment: journal.aiAnalysis.sentiment,
-        riskAssessment: journal.aiAnalysis.riskAssessment,
-        suggestedActions: journal.aiAnalysis.suggestedActions
-      }
+      insights: journal.aiAnalysis
     });
-
   } catch (error) {
     console.error('[Journal Controller] Get insights error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve insights'
-    });
+    res.status(500).json({ success: false, error: 'Failed to retrieve insights' });
   }
 };
 
@@ -493,13 +388,16 @@ export const getJournalStats = async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const journals = await JournalEntry.find({
-      userId,
-      deletedAt: null,
-      createdAt: { $gte: startDate }
-    }).select('mood aiAnalysis createdAt');
+    const { data: journals, error } = await supabase
+      .from('journal_entries')
+      .select('mood, aiAnalysis, createdAt')
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .gte('createdAt', startDate.toISOString())
+      .order('createdAt', { ascending: false });
 
-    // Calculate stats
+    if (error) throw error;
+
     const stats = {
       total: journals.length,
       avgMood: 0,
@@ -508,57 +406,41 @@ export const getJournalStats = async (req, res) => {
       journalingStreak: 0
     };
 
-    // Average mood
-    const moodEntries = journals.filter(j => j.mood);
+    const moodEntries = journals.filter((j) => j.mood);
     if (moodEntries.length > 0) {
-      stats.avgMood = (moodEntries.reduce((sum, j) => sum + j.mood, 0) / moodEntries.length).toFixed(1);
+      stats.avgMood = (
+        moodEntries.reduce((sum, j) => sum + j.mood, 0) / moodEntries.length
+      ).toFixed(1);
     }
 
-    // Sentiment distribution
-    journals.forEach(j => {
+    journals.forEach((j) => {
       const sentiment = j.aiAnalysis?.sentiment?.label;
       if (sentiment && stats.sentimentDistribution[sentiment] !== undefined) {
         stats.sentimentDistribution[sentiment]++;
       }
-    });
 
-    // Risk distribution
-    journals.forEach(j => {
       const risk = j.aiAnalysis?.riskAssessment?.level;
       if (risk && stats.riskDistribution[risk] !== undefined) {
         stats.riskDistribution[risk]++;
       }
     });
 
-    // Calculate journaling streak
-    stats.journalingStreak = await calculateJournalingStreak(userId);
+    stats.journalingStreak = calculateJournalingStreak(journals);
 
-    res.json({
-      success: true,
-      stats,
-      timeRange
-    });
-
+    res.json({ success: true, stats, timeRange });
   } catch (error) {
     console.error('[Journal Controller] Get stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve statistics'
-    });
+    res.status(500).json({ success: false, error: 'Failed to retrieve statistics' });
   }
 };
 
 /**
- * Helper: Calculate journaling streak
+ * Helper: Calculate journaling streak from journals array
  */
-async function calculateJournalingStreak(userId) {
-  const journals = await JournalEntry.find({ userId, deletedAt: null })
-    .sort({ createdAt: -1 })
-    .select('createdAt')
-    .lean();
+function calculateJournalingStreak(journals) {
+  if (!journals || journals.length === 0) return 0;
 
-  if (journals.length === 0) return 0;
-
+  // They are already sorted desc
   let streak = 1;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -591,30 +473,22 @@ export const getJournalMessages = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
-    const journal = await JournalEntry.findOne({
-      _id: id,
-      userId,
-      deletedAt: null
-    }).select('reflectionMessages');
+    const { data: journal, error } = await supabase
+      .from('journal_entries')
+      .select('reflectionMessages')
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .single();
 
-    if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+    if (error || !journal) {
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
-    res.json({
-      success: true,
-      messages: journal.reflectionMessages || []
-    });
-
+    res.json({ success: true, messages: journal.reflectionMessages || [] });
   } catch (error) {
     console.error('[Journal Controller] Get messages error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get messages'
-    });
+    res.status(500).json({ success: false, error: 'Failed to get messages' });
   }
 };
 
@@ -629,81 +503,61 @@ export const sendJournalMessage = async (req, res) => {
     const userId = req.userId;
 
     if (!content || content.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message content is required'
-      });
+      return res.status(400).json({ success: false, error: 'Message content is required' });
     }
 
-    const journal = await JournalEntry.findOne({
-      _id: id,
-      userId,
-      deletedAt: null
-    });
+    const { data: journal, error } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('id', id)
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .single();
 
-    if (!journal) {
-      return res.status(404).json({
-        success: false,
-        error: 'Journal not found'
-      });
+    if (error || !journal) {
+      return res.status(404).json({ success: false, error: 'Journal not found' });
     }
 
-    console.log(`[Journal Controller] Sending reflection message for journal: ${id}`);
-
-    // Create user message
     const userMessage = {
       role: 'user',
       content: content.trim(),
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     };
 
-    // Generate AI response using the orchestrator
-    const aiOrchestratorService = (await import('../services/ai-orchestrator.service.js')).default;
-    
-    // Get context: journal content + previous messages
     const context = {
       journalContent: journal.content,
       previousMessages: journal.reflectionMessages || []
     };
-    
+
     const aiResponse = await aiOrchestratorService.generateJournalReflection(
       content.trim(),
       context
     );
 
-    // Create AI message
     const aiMessage = {
       role: 'assistant',
       content: aiResponse.content,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       aiMetadata: {
         isCrisis: aiResponse.metadata.isCrisis,
         riskLevel: aiResponse.metadata.riskLevel,
         model: aiResponse.metadata.model,
-        tokensUsed: 0 // TODO: Calculate actual tokens
+        tokensUsed: 0
       }
     };
 
-    // Add both messages to journal
-    journal.reflectionMessages = journal.reflectionMessages || [];
-    journal.reflectionMessages.push(userMessage, aiMessage);
-    
-    await journal.save();
+    const updatedMessages = [...(journal.reflectionMessages || []), userMessage, aiMessage];
 
-    console.log(`[Journal Controller] Reflection message added successfully`);
+    await supabase
+      .from('journal_entries')
+      .update({ reflectionMessages: updatedMessages })
+      .eq('id', id);
 
-    res.json({
-      success: true,
-      userMessage,
-      aiMessage
-    });
-
+    res.json({ success: true, userMessage, aiMessage });
   } catch (error) {
     console.error('[Journal Controller] Send message error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send message',
-      details: error.message
-    });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to send message', details: error.message });
   }
 };

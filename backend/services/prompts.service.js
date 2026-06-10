@@ -54,7 +54,7 @@ Remember: Your goal is to support, not to solve. Guide students to resources and
     // Add journal context if available
     if (journalContext && journalContext.length > 0) {
       prompt += 'STUDENT BACKGROUND (from recent journal entries):\n';
-      journalContext.slice(-3).forEach(entry => {
+      journalContext.slice(-3).forEach((entry) => {
         const date = new Date(entry.createdAt).toLocaleDateString();
         prompt += `- ${date}: ${entry.content?.substring(0, 200)}...\n`;
         if (entry.aiSummary) {
@@ -68,7 +68,7 @@ Remember: Your goal is to support, not to solve. Guide students to resources and
     if (conversationHistory && conversationHistory.length > 0) {
       prompt += 'CONVERSATION HISTORY:\n';
       const recentMessages = conversationHistory.slice(-10);
-      recentMessages.forEach(msg => {
+      recentMessages.forEach((msg) => {
         const role = msg.role === 'user' ? 'Student' : 'Assistant';
         prompt += `${role}: ${msg.content}\n`;
       });
@@ -170,7 +170,7 @@ RISK LEVEL:`;
    */
   buildCrisisResponsePrompt(userMessage, riskLevel = 'high') {
     const hotline = AI_CONFIG.CRISIS.HOTLINES.NATIONAL;
-    
+
     return `CRISIS SITUATION DETECTED - ${riskLevel.toUpperCase()} RISK
 
 Student message: "${userMessage}"
@@ -253,11 +253,11 @@ Your response:`;
    */
   detectTopic(message) {
     const lowerMsg = message.toLowerCase();
-    
+
     // Crisis detection
     const crisisKeywords = AI_CONFIG.CRISIS.KEYWORDS;
     const highRiskKeywords = AI_CONFIG.CRISIS.RISK_LEVELS.HIGH;
-    
+
     for (const keyword of highRiskKeywords) {
       if (lowerMsg.includes(keyword.toLowerCase())) {
         return { topic: 'crisis', issue: 'crisis', isCrisis: true, riskLevel: 'high' };

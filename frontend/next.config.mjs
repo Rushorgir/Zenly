@@ -1,18 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true
   },
   images: {
-    unoptimized: true,
+    unoptimized: true
   },
   webpack: (config, { isServer }) => {
-    config.infrastructureLogging = { level: 'error' }
-    return config
-  },
-}
+    config.infrastructureLogging = { level: 'error' };
+    return config;
+  }
+};
 
-export default nextConfig
+export default nextConfig;

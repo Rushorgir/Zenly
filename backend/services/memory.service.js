@@ -25,9 +25,9 @@ class MemoryService {
         .lean();
 
       // Get recent journal entries for context
-      const journalEntries = await JournalEntry.find({ 
+      const journalEntries = await JournalEntry.find({
         userId,
-        deletedAt: null 
+        deletedAt: null
       })
         .sort({ createdAt: -1 })
         .limit(AI_CONFIG.CONTEXT.MAX_JOURNAL_ENTRIES)
@@ -38,7 +38,7 @@ class MemoryService {
       messages.reverse();
 
       return {
-        conversationHistory: messages.map(msg => ({
+        conversationHistory: messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
           timestamp: msg.createdAt
@@ -91,7 +91,7 @@ class MemoryService {
       // Try to find active conversation
       let conversation = await AIConversation.findOne({
         userId,
-        journalEntryId: journalEntryId || null,
+        journalEntryId: journalEntryId || null
         // Get most recent conversation
       }).sort({ createdAt: -1 });
 
@@ -119,12 +119,12 @@ class MemoryService {
    */
   estimateContextTokens(messages, journalEntries) {
     let totalText = '';
-    
-    messages.forEach(msg => {
+
+    messages.forEach((msg) => {
       totalText += msg.content + ' ';
     });
 
-    journalEntries.forEach(entry => {
+    journalEntries.forEach((entry) => {
       totalText += (entry.content || '').substring(0, 200) + ' ';
       totalText += (entry.aiSummary || '') + ' ';
     });
@@ -139,7 +139,7 @@ class MemoryService {
    */
   truncateContext(context) {
     const maxTokens = AI_CONFIG.CONTEXT.MAX_CONTEXT_TOKENS;
-    
+
     while (context.tokenCount > maxTokens && context.conversationHistory.length > 1) {
       // Remove oldest message (but keep at least 1)
       context.conversationHistory.shift();
@@ -196,9 +196,9 @@ class MemoryService {
   extractMoodPattern(journals) {
     if (journals.length === 0) return 'unknown';
 
-    const sentiments = journals.map(j => j.sentiment).filter(Boolean);
-    const positive = sentiments.filter(s => s === 'positive').length;
-    const negative = sentiments.filter(s => s === 'negative').length;
+    const sentiments = journals.map((j) => j.sentiment).filter(Boolean);
+    const positive = sentiments.filter((s) => s === 'positive').length;
+    const negative = sentiments.filter((s) => s === 'negative').length;
 
     if (positive > negative * 1.5) return 'generally positive';
     if (negative > positive * 1.5) return 'struggling';
@@ -212,10 +212,10 @@ class MemoryService {
    */
   extractCommonTopics(journals) {
     const tagCounts = {};
-    
-    journals.forEach(j => {
+
+    journals.forEach((j) => {
       if (j.tags && Array.isArray(j.tags)) {
-        j.tags.forEach(tag => {
+        j.tags.forEach((tag) => {
           tagCounts[tag] = (tagCounts[tag] || 0) + 1;
         });
       }
@@ -241,7 +241,7 @@ class MemoryService {
         createdAt: { $lt: cutoffDate }
       }).select('_id');
 
-      const conversationIds = oldConversations.map(c => c._id);
+      const conversationIds = oldConversations.map((c) => c._id);
 
       await AIMessage.deleteMany({ conversationId: { $in: conversationIds } });
       await AIConversation.deleteMany({ _id: { $in: conversationIds } });

@@ -1,33 +1,46 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { LineChart, Line, AreaChart, Area, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { useState, useEffect } from 'react';
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 
 interface UsageDatum {
-  date?: string
-  users?: number
-  sessions?: number
-  journalEntries?: number
+  date?: string;
+  users?: number;
+  sessions?: number;
+  journalEntries?: number;
 }
 
 interface PieDatum {
-  name?: string
-  value?: number
-  color?: string
+  name?: string;
+  value?: number;
+  color?: string;
 }
 
 interface ChartsProps {
-  usageData: UsageDatum[]
-  pieData: PieDatum[]
-  type: "area" | "pie" | "line"
+  usageData: UsageDatum[];
+  pieData: PieDatum[];
+  type: 'area' | 'pie' | 'line';
 }
 
 export function AdminCharts({ usageData, pieData, type }: ChartsProps) {
-  const [isMounted, setIsMounted] = useState(false)
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   if (!isMounted) {
     return (
@@ -37,10 +50,10 @@ export function AdminCharts({ usageData, pieData, type }: ChartsProps) {
           <p className="text-sm text-muted-foreground">Loading chart...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  if (type === "area") {
+  if (type === 'area') {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={usageData}>
@@ -74,10 +87,10 @@ export function AdminCharts({ usageData, pieData, type }: ChartsProps) {
           />
         </AreaChart>
       </ResponsiveContainer>
-    )
+    );
   }
 
-  if (type === "pie") {
+  if (type === 'pie') {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
@@ -97,10 +110,10 @@ export function AdminCharts({ usageData, pieData, type }: ChartsProps) {
           <Tooltip />
         </PieChart>
       </ResponsiveContainer>
-    )
+    );
   }
 
-  if (type === "line") {
+  if (type === 'line') {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={usageData}>
@@ -111,8 +124,8 @@ export function AdminCharts({ usageData, pieData, type }: ChartsProps) {
           <Line type="monotone" dataKey="sessions" stroke="#4fd1c5" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
-    )
+    );
   }
 
-  return null
+  return null;
 }

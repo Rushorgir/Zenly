@@ -1,142 +1,186 @@
-import MetricsDaily from "../models/metricsDaily.model.js";
-import AnalyticsEvent from "../models/analysticsEvent.model.js";
-import User from "../models/user.model.js";
-import ForumPost from "../models/forumPost.model.js";
-import ForumComment from "../models/forumComment.model.js";
-import ForumReaction from "../models/forumReaction.model.js";
+import { supabase } from '../config/supabase.js';
+
+const formatModel = (item) => {
+  if (!item) return null;
+  const { id, ...rest } = item;
+  return { ...rest, _id: id };
+};
 
 // GET /admin/metrics/overview
 export const metricsOverview = async (req, res) => {
-    try {
-        const { from, to } = req.query;
-        const query = {};
-        if (from || to) {
-            query.date = {};
-            if (from) query.date.$gte = new Date(from);
-            if (to) query.date.$lte = new Date(to);
-        }
+  try {
+    const { from, to } = req.query;
+    let query = supabase.from('metrics_daily').select('*').order('date', { ascending: true });
 
-        const metrics = await MetricsDaily.find(query).sort({ date: 1 });
-        res.json(metrics);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    if (from) query = query.gte('date', new Date(from).toISOString());
+    if (to) query = query.lte('date', new Date(to).toISOString());
+
+    const { data: metrics, error } = await query;
+    if (error) throw error;
+
+    res.json(metrics.map(formatModel));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // GET /admin/risk-alerts
 export const riskAlerts = async (req, res) => {
-    try {
-        const alerts = await AnalyticsEvent.find({ type: "risk" }).sort({ createdAt: -1 });
-        res.json(alerts);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const { data: alerts, error } = await supabase
+      .from('analytics_events')
+      .select('*')
+      .eq('name', 'risk')
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    res.json(alerts.map(formatModel));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // GET /admin/users
 export const listUsers = async (req, res) => {
-    try {
-        const { q, limit = 20 } = req.query;
-        const query = {};
-        if (q) query.email = new RegExp(q, "i");
+  try {
+    const { q, limit = 20 } = req.query;
+    let query = supabase
+      .from('users')
+      .select('id, email, firstName, lastName, role, createdAt')
+      .limit(Number(limit));
 
-        const users = await User.find(query).limit(Number(limit)).select("-passwordHash");
-        res.json(users);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    if (q) {
+      query = query.ilike('email', `%${q}%`);
+    }
+
+    const { data: users, error } = await query;
+    if (error) throw error;
+
+    res.json(users.map(formatModel));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // GET /admin/forum/reported-posts - Get all reported posts
 export const getReportedPosts = async (req, res) => {
-    try {
-        const reportedPosts = await ForumPost.find({ 
-            reportCount: { $gt: 0 } 
-        })
-        .populate('userId', 'firstName lastName')
-        .populate('reports.userId', 'firstName lastName email')
-        .sort({ reportCount: -1, createdAt: -1 });
+  try {
+    const { data: reportedPosts, error } = await supabase
+      .from('forum_posts')
+      .select('*, userId:users(id, firstName, lastName)')
+      .gt('reportCount', 0)
+      .order('reportCount', { ascending: false })
+      .order('createdAt', { ascending: false });
 
-        res.json({ success: true, data: reportedPosts });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
-    }
+    if (error) throw error;
+    res.json({ success: true, data: reportedPosts.map(formatModel) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
 // GET /admin/forum/all-posts - Get ALL posts for admin management
 export const getAllPosts = async (req, res) => {
-    try {
-        const { limit = 1000, skip = 0, search, category } = req.query;
-        let query = {};
-        
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { content: { $regex: search, $options: 'i' } }
-            ];
-        }
-        
-        if (category && category !== 'all') {
-            query.category = category;
-        }
+  try {
+    const { limit = 1000, skip = 0, search, category } = req.query;
 
-        const posts = await ForumPost.find(query)
-            .populate('userId', 'firstName lastName email')
-            .sort({ createdAt: -1 })
-            .limit(Number(limit))
-            .skip(Number(skip));
+    let query = supabase
+      .from('forum_posts')
+      .select('*, userId:users(id, firstName, lastName)', { count: 'exact' });
 
-        const total = await ForumPost.countDocuments(query);
-
-        res.json({ 
-            success: true, 
-            data: posts,
-            total,
-            hasMore: (Number(skip) + posts.length) < total
-        });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
     }
+
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    const {
+      data: posts,
+      count: total,
+      error
+    } = await query
+      .order('createdAt', { ascending: false })
+      .range(Number(skip), Number(skip) + Number(limit) - 1);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: posts.map(formatModel),
+      total: total || 0,
+      hasMore: Number(skip) + posts.length < (total || 0)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
 // DELETE /admin/forum/posts/:id - Delete a post (admin only)
 export const deletePost = async (req, res) => {
-    try {
-        const post = await ForumPost.findById(req.params.id);
-        if (!post) {
-            return res.status(404).json({ success: false, error: "Post not found" });
-        }
+  try {
+    const { data: post, error: postError } = await supabase
+      .from('forum_posts')
+      .select('id')
+      .eq('id', req.params.id)
+      .single();
 
-        // Delete all comments associated with the post
-        await ForumComment.deleteMany({ postId: req.params.id });
-        
-        // Delete all reactions associated with the post
-        await ForumReaction.deleteMany({ postId: req.params.id });
-        
-        // Delete the post
-        await ForumPost.deleteOne({ _id: req.params.id });
-
-        // Emit Socket.IO event if available
-        const io = req.app.get('io');
-        if (io) {
-            io.to('forum').emit('forum:postDelete', req.params.id);
-        }
-
-        res.json({ success: true, message: "Post and associated data deleted successfully" });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
+    if (postError || !post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
     }
+
+    // Due to ON DELETE CASCADE on foreign keys in Postgres (if set),
+    // deleting the post will automatically delete comments and reactions.
+    // We will explicitly delete it here.
+    const { error } = await supabase.from('forum_posts').delete().eq('id', req.params.id);
+
+    if (error) throw error;
+
+    // Emit Socket.IO event if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to('forum').emit('forum:postDelete', req.params.id);
+    }
+
+    res.json({ success: true, message: 'Post and associated data deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
 // POST /admin/forum/posts/:id/dismiss-reports - Clear reports from a post
 export const dismissReports = async (req, res) => {
-    try {
-        const post = await ForumPost.findById(req.params.id);
-        if (!post) {
-            return res.status(404).json({ success: false, error: "Post not found" });
-        }
+  try {
+    const { data: post, error: postError } = await supabase
+      .from('forum_posts')
+      .select('id')
+      .eq('id', req.params.id)
+      .single();
 
-        post.reports = [];
-        post.reportCount = 0;
-        post.isFlagged = false;
-        await post.save();
-
-        res.json({ success: true, message: "Reports dismissed successfully", data: post });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
+    if (postError || !post) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
     }
+
+    const { data: updatedPost, error } = await supabase
+      .from('forum_posts')
+      .update({
+        reports: [],
+        reportCount: 0,
+        isFlagged: false
+      })
+      .eq('id', req.params.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Reports dismissed successfully',
+      data: formatModel(updatedPost)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };

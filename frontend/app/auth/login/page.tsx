@@ -1,67 +1,72 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Heart, Eye, EyeOff, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Heart, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    rememberMe: false,
-  })
-  const router = useRouter()
+    email: '',
+    password: '',
+    rememberMe: false
+  });
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
-      const { authAPI } = await import("@/lib/api")
-      const result = await authAPI.login(formData.email, formData.password)
-      
+      const { authAPI } = await import('@/lib/api');
+      const result = await authAPI.login(formData.email, formData.password);
+
       if (result.success) {
         // Successful login, redirect to dashboard
-        router.push("/dashboard")
+        router.push('/dashboard');
       } else if (result.requiresVerification) {
         // User needs to verify email first
         if (typeof window !== 'undefined') {
-          localStorage.setItem('zenly_pending_verification_email', result.email || formData.email)
+          localStorage.setItem('zenly_pending_verification_email', result.email || formData.email);
         }
-        alert("Please verify your email before logging in. Redirecting to verification page...")
-        router.push("/auth/verify-otp")
+        alert('Please verify your email before logging in. Redirecting to verification page...');
+        router.push('/auth/verify-otp');
       } else {
-        alert(result.error || "Login failed. Please check your credentials.")
+        alert(result.error || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
-      console.error("Login error:", error)
-      alert(error instanceof Error ? error.message : "Login failed. Please check your credentials.")
+      console.error('Login error:', error);
+      alert(
+        error instanceof Error ? error.message : 'Login failed. Please check your credentials.'
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Home
           </Link>
@@ -76,7 +81,9 @@ export default function LoginPage() {
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-            <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+            <CardDescription className="text-center">
+              Enter your credentials to access your account
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -100,7 +107,7 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     name="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleInputChange}
@@ -128,7 +135,9 @@ export default function LoginPage() {
                   <Checkbox
                     id="remember"
                     checked={formData.rememberMe}
-                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))
+                    }
                   />
                   <Label htmlFor="remember" className="text-sm">
                     Remember me
@@ -140,13 +149,13 @@ export default function LoginPage() {
               </div>
 
               <Button type="submit" className="w-full h-11" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Don&apos;t have an account? {" "}
+                Don&apos;t have an account?{' '}
                 <Link href="/auth/signup" className="text-primary hover:underline font-medium">
                   Sign up
                 </Link>
@@ -162,5 +171,5 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

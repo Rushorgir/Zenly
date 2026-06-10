@@ -12,7 +12,7 @@ export const aiChatLimiter = rateLimit({
   max: AI_CONFIG.RATE_LIMIT.PER_USER,
   message: {
     error: 'Too many AI requests. Please try again later.',
-    retryAfter: AI_CONFIG.RATE_LIMIT.WINDOW_MINUTES,
+    retryAfter: AI_CONFIG.RATE_LIMIT.WINDOW_MINUTES
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -24,9 +24,9 @@ export const aiChatLimiter = rateLimit({
     res.status(429).json({
       error: 'Too many AI requests',
       message: `You've reached the limit of ${AI_CONFIG.RATE_LIMIT.PER_USER} requests per ${AI_CONFIG.RATE_LIMIT.WINDOW_MINUTES} minutes. Please try again later.`,
-      retryAfter: AI_CONFIG.RATE_LIMIT.WINDOW_MINUTES * 60,
+      retryAfter: AI_CONFIG.RATE_LIMIT.WINDOW_MINUTES * 60
     });
-  },
+  }
 });
 
 // Rate limiter for journal AI analysis (less strict)
@@ -34,7 +34,7 @@ export const journalAILimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // 30 journal entries per 15 minutes
   message: {
-    error: 'Too many journal submissions. Please try again later.',
+    error: 'Too many journal submissions. Please try again later.'
   },
   keyGenerator: (req) => req.userId || 'anonymous',
   // Skip IPv6 validation since we're using user IDs
@@ -42,10 +42,11 @@ export const journalAILimiter = rateLimit({
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many journal submissions',
-      message: 'You\'ve created too many journal entries too quickly. Please take a moment before creating another entry.',
-      retryAfter: 900, // 15 minutes
+      message:
+        "You've created too many journal entries too quickly. Please take a moment before creating another entry.",
+      retryAfter: 900 // 15 minutes
     });
-  },
+  }
 });
 
 // Daily limit tracker (in-memory, could be moved to Redis in production)
@@ -56,29 +57,30 @@ const dailyUsageTracker = new Map();
  */
 export const dailyAILimiter = (req, res, next) => {
   const userId = req.userId;
-  
+
   if (!userId) {
     return next();
   }
 
   const today = new Date().toDateString();
   const key = `${userId}:${today}`;
-  
+
   const usage = dailyUsageTracker.get(key) || 0;
-  
+
   if (usage >= AI_CONFIG.RATE_LIMIT.DAILY_LIMIT) {
     return res.status(429).json({
       error: 'Daily AI limit reached',
       message: `You've reached your daily limit of ${AI_CONFIG.RATE_LIMIT.DAILY_LIMIT} AI interactions. This limit resets at midnight.`,
-      retryAfter: getSecondsUntilMidnight(),
+      retryAfter: getSecondsUntilMidnight()
     });
   }
 
   // Increment usage
   dailyUsageTracker.set(key, usage + 1);
-  
+
   // Clean up old entries (run occasionally)
-  if (Math.random() < 0.01) { // 1% chance
+  if (Math.random() < 0.01) {
+    // 1% chance
     cleanupOldDailyTracking();
   }
 
@@ -109,11 +111,11 @@ function cleanupOldDailyTracking() {
     }
   }
 
-  keysToDelete.forEach(key => dailyUsageTracker.delete(key));
+  keysToDelete.forEach((key) => dailyUsageTracker.delete(key));
 }
 
 export default {
   aiChatLimiter,
   journalAILimiter,
-  dailyAILimiter,
+  dailyAILimiter
 };

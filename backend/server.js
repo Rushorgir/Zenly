@@ -6,7 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { connectDB } from './config/db.js';
+
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 
 import authRoutes from './routes/auth.route.js';
@@ -26,12 +26,12 @@ const PORT = process.env.PORT || 5001;
 
 // Socket.IO configuration
 const io = new Server(httpServer, {
-    cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-        credentials: true,
-        methods: ['GET', 'POST']
-    },
-    transports: ['websocket', 'polling']
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Make io accessible to routes
@@ -39,47 +39,47 @@ app.set('io', io);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-    console.log(`[Socket.IO] Client connected: ${socket.id}`);
+  console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
-    // Join forum room for real-time updates
-    socket.on('forum:join', () => {
-        socket.join('forum');
-        console.log(`[Socket.IO] Client ${socket.id} joined forum room`);
-    });
+  // Join forum room for real-time updates
+  socket.on('forum:join', () => {
+    socket.join('forum');
+    console.log(`[Socket.IO] Client ${socket.id} joined forum room`);
+  });
 
-    // Leave forum room
-    socket.on('forum:leave', () => {
-        socket.leave('forum');
-        console.log(`[Socket.IO] Client ${socket.id} left forum room`);
-    });
+  // Leave forum room
+  socket.on('forum:leave', () => {
+    socket.leave('forum');
+    console.log(`[Socket.IO] Client ${socket.id} left forum room`);
+  });
 
-    // Join resources room for real-time updates
-    socket.on('resources:join', () => {
-        socket.join('resources');
-        console.log(`[Socket.IO] Client ${socket.id} joined resources room`);
-    });
+  // Join resources room for real-time updates
+  socket.on('resources:join', () => {
+    socket.join('resources');
+    console.log(`[Socket.IO] Client ${socket.id} joined resources room`);
+  });
 
-    // Leave resources room
-    socket.on('resources:leave', () => {
-        socket.leave('resources');
-        console.log(`[Socket.IO] Client ${socket.id} left resources room`);
-    });
+  // Leave resources room
+  socket.on('resources:leave', () => {
+    socket.leave('resources');
+    console.log(`[Socket.IO] Client ${socket.id} left resources room`);
+  });
 
-    socket.on('disconnect', (reason) => {
-        console.log(`[Socket.IO] Client disconnected: ${socket.id} (${reason})`);
-    });
+  socket.on('disconnect', (reason) => {
+    console.log(`[Socket.IO] Client disconnected: ${socket.id} (${reason})`);
+  });
 
-    socket.on('error', (error) => {
-        console.error(`[Socket.IO] Socket error for ${socket.id}:`, error);
-    });
+  socket.on('error', (error) => {
+    console.error(`[Socket.IO] Socket error for ${socket.id}:`, error);
+  });
 });
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
@@ -88,26 +88,26 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Welcome route
 app.get('/', (req, res) => {
-    res.json({ 
-        message: 'Welcome to the Zenly Mental Health Support Platform API.',
-        version: '1.0.0',
-        endpoints: {
-            auth: '/auth',
-            users: '/users/me',
-            journals: '/journals',
-            ai: '/ai/conversations',
-            moods: '/moods',
-            forum: '/forum',
-            resources: '/resources',
-            admin: '/admin',
-            notifications: '/notifications'
-        }
-    });
+  res.json({
+    message: 'Welcome to the Zenly Mental Health Support Platform API.',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/auth',
+      users: '/users/me',
+      journals: '/journals',
+      ai: '/ai/conversations',
+      moods: '/moods',
+      forum: '/forum',
+      resources: '/resources',
+      admin: '/admin',
+      notifications: '/notifications'
+    }
+  });
 });
 
 // API Routes
@@ -130,8 +130,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 httpServer.listen(PORT, () => {
-    connectDB();
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
-    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔌 Socket.IO enabled for real-time updates`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔌 Socket.IO enabled for real-time updates`);
 });

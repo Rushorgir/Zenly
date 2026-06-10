@@ -185,7 +185,6 @@ Phase 6 — Database Abstraction & Migration Planning
 - Benefits: lower-risk path to switch DB providers
 - Risks: significant development; ensure thorough testing
 - Validation: integration tests, manual QA in staging
-- Rollback: keep Mongoose as default until full switch
 
 Phase 7 — Optional: Full MongoDB → Supabase Migration
 - Goal: switch production DB to Supabase
@@ -193,7 +192,6 @@ Phase 7 — Optional: Full MongoDB → Supabase Migration
 - Benefits: RLS, managed Postgres, integrated auth
 - Risks: high — requires careful rollout and QA
 - Validation: full integration tests, staged rollout
-- Rollback: switch back to Mongoose adapter quickly if needed
 
 17) Validation strategy for each phase
 - Add CI workflows to run lint (phase 2), build (frontend), and unit tests (phase 4+). Use feature branches and staged PRs. Require green CI for merge.

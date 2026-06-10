@@ -1,16 +1,29 @@
-import Notification from "../models/notification.model.js";
+import { supabase } from '../config/supabase.js';
+
+const formatModel = (item) => {
+  if (!item) return null;
+  const { id, ...rest } = item;
+  return { ...rest, _id: id };
+};
 
 // GET /notifications
 export const listNotifications = async (req, res) => {
   try {
     const { cursor, limit = 10 } = req.query;
-    const query = { userId: req.userId };
-    if (cursor) query._id = { $lt: cursor };
+    let query = supabase
+      .from('notifications')
+      .select('*')
+      .eq('userId', req.userId)
+      .order('createdAt', { ascending: false });
 
-    const notifs = await Notification.find(query)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit));
-    res.json(notifs);
+    if (cursor) {
+      query = query.lt('id', cursor);
+    }
+
+    const { data: notifs, error } = await query.limit(Number(limit));
+    if (error) throw error;
+
+    res.json(notifs.map(formatModel));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -20,10 +33,19 @@ export const listNotifications = async (req, res) => {
 export const markRead = async (req, res) => {
   try {
     const { ids } = req.body;
-    await Notification.updateMany(
-      { _id: { $in: ids }, userId: req.userId },
-      { readAt: new Date() },
-    );
+
+    if (!ids || !ids.length) {
+      return res.json({ success: true });
+    }
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ readAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+      .in('id', ids)
+      .eq('userId', req.userId);
+
+    if (error) throw error;
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

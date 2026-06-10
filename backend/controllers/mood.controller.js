@@ -1,4 +1,10 @@
-import MoodLog from "../models/moodlog.model.js";
+import { supabase } from '../config/supabase.js';
+
+const formatMood = (m) => {
+  if (!m) return null;
+  const { id, ...rest } = m;
+  return { ...rest, _id: id };
+};
 
 // PUT /moods/today
 export const upsertTodayMood = async (req, res) => {
@@ -6,14 +12,43 @@ export const upsertTodayMood = async (req, res) => {
     const { mood, notes } = req.body;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const dateStr = today.toISOString().split('T')[0];
 
-    const entry = await MoodLog.findOneAndUpdate(
-      { userId: req.userId, date: today },
-      { mood, notes },
-      { upsert: true, new: true },
-    );
+    // Try to find if exists
+    const { data: existing } = await supabase
+      .from('mood_logs')
+      .select('id')
+      .eq('userId', req.userId)
+      .eq('date', dateStr)
+      .single();
 
-    res.json(entry);
+    let entry;
+    if (existing) {
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .update({ mood, notes, updatedAt: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      entry = data;
+    } else {
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .insert({
+          userId: req.userId,
+          date: dateStr,
+          mood,
+          notes,
+          createdAt: new Date().toISOString()
+        })
+        .select('*')
+        .single();
+      if (error) throw error;
+      entry = data;
+    }
+
+    res.json(formatMood(entry));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -23,16 +58,26 @@ export const upsertTodayMood = async (req, res) => {
 export const listMoods = async (req, res) => {
   try {
     const { from, to } = req.query;
-    const query = { userId: req.userId };
 
-    if (from || to) {
-      query.date = {};
-      if (from) query.date.$gte = new Date(from);
-      if (to) query.date.$lte = new Date(to);
+    let query = supabase
+      .from('mood_logs')
+      .select('*')
+      .eq('userId', req.userId)
+      .order('date', { ascending: true });
+
+    if (from) {
+      const fromDate = new Date(from).toISOString().split('T')[0];
+      query = query.gte('date', fromDate);
+    }
+    if (to) {
+      const toDate = new Date(to).toISOString().split('T')[0];
+      query = query.lte('date', toDate);
     }
 
-    const moods = await MoodLog.find(query).sort({ date: 1 });
-    res.json(moods);
+    const { data: moods, error } = await query;
+    if (error) throw error;
+
+    res.json(moods.map(formatMood));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,17 +1,17 @@
-import "./globals.css";
+import './globals.css';
 
-import { Analytics } from "@vercel/analytics/next";
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
-import type { Metadata } from "next";
+import { Analytics } from '@vercel/analytics/next';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Zenly",
-  description: "Your Mental Wellness Journal System",
+  title: 'Zenly',
+  description: 'Your Mental Wellness Journal System'
 };
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {

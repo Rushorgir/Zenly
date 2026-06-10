@@ -3,38 +3,38 @@ import { createTransport } from 'nodemailer';
 // Create transporter for sending emails
 // Using Gmail for development (you can switch to Mailjet or other services later)
 const createTransporter = () => {
-    // For development, use Gmail SMTP or ethereal for testing
-    // For production, use a service like Mailjet, SendGrid, or AWS SES
-    
-    if (process.env.EMAIL_SERVICE === 'gmail') {
-        return createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD // Use App Password for Gmail
-            }
-        });
-    } else if (process.env.EMAIL_SERVICE === 'mailjet') {
-        return createTransport({
-            host: 'in-v3.mailjet.com',
-            port: 587,
-            auth: {
-                user: process.env.MAILJET_API_KEY,
-                pass: process.env.MAILJET_SECRET_KEY
-            }
-        });
-    } else {
-        // Default: Use SMTP settings from environment
-        return createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: process.env.SMTP_PORT || 587,
-            secure: false, // true for 465, false for other ports
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD
-            }
-        });
-    }
+  // For development, use Gmail SMTP or ethereal for testing
+  // For production, use a service like Mailjet, SendGrid, or AWS SES
+
+  if (process.env.EMAIL_SERVICE === 'gmail') {
+    return createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD // Use App Password for Gmail
+      }
+    });
+  } else if (process.env.EMAIL_SERVICE === 'mailjet') {
+    return createTransport({
+      host: 'in-v3.mailjet.com',
+      port: 587,
+      auth: {
+        user: process.env.MAILJET_API_KEY,
+        pass: process.env.MAILJET_SECRET_KEY
+      }
+    });
+  } else {
+    // Default: Use SMTP settings from environment
+    return createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT || 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+  }
 };
 
 /**
@@ -44,14 +44,14 @@ const createTransporter = () => {
  * @param {string} userName - User's name
  */
 export const sendVerificationEmail = async (email, otp, userName = 'there') => {
-    try {
-        const transporter = createTransporter();
+  try {
+    const transporter = createTransporter();
 
-        const mailOptions = {
-            from: `"Zenly - Mental Health Support" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: 'Your Zenly App Email Verification Code',
-            html: `
+    const mailOptions = {
+      from: `"Zenly - Mental Health Support" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Zenly App Email Verification Code',
+      html: `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -147,7 +147,7 @@ export const sendVerificationEmail = async (email, otp, userName = 'there') => {
                 </body>
                 </html>
             `,
-            text: `
+      text: `
 Hi ${userName},
 
 Thank you for signing up with Zenly!
@@ -162,15 +162,15 @@ If you didn't request this verification code, please ignore this email.
 Thank you!
 Zenly - Mental Health Support Platform
             `.trim()
-        };
+    };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Verification email sent:', info.messageId);
-        return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('❌ Error sending verification email:', error);
-        throw new Error('Failed to send verification email');
-    }
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Verification email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending verification email:', error);
+    throw new Error('Failed to send verification email', { cause: error });
+  }
 };
 
 /**
@@ -179,14 +179,14 @@ Zenly - Mental Health Support Platform
  * @param {string} userName - User's name
  */
 export const sendWelcomeEmail = async (email, userName) => {
-    try {
-        const transporter = createTransporter();
+  try {
+    const transporter = createTransporter();
 
-        const mailOptions = {
-            from: `"Zenly - Mental Health Support" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: 'Welcome to Zenly! 🎉',
-            html: `
+    const mailOptions = {
+      from: `"Zenly - Mental Health Support" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Welcome to Zenly! 🎉',
+      html: `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -275,19 +275,19 @@ export const sendWelcomeEmail = async (email, userName) => {
                 </body>
                 </html>
             `
-        };
+    };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Welcome email sent:', info.messageId);
-        return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('❌ Error sending welcome email:', error);
-        // Don't throw error for welcome email - it's not critical
-        return { success: false, error: error.message };
-    }
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Welcome email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending welcome email:', error);
+    // Don't throw error for welcome email - it's not critical
+    return { success: false, error: error.message };
+  }
 };
 
 export default {
-    sendVerificationEmail,
-    sendWelcomeEmail
+  sendVerificationEmail,
+  sendWelcomeEmail
 };

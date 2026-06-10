@@ -1,26 +1,39 @@
 /**
  * Forum Page - Enhanced with Search, Pagination, and Real-time Updates
- * 
+ *
  * Features:
  * - Case-insensitive dynamic search
  * - Pagination (8 posts per page)
  * - Socket.IO real-time updates
  * - React.memo optimization
  * - Accessible keyboard navigation
- * 
+ *
  * @page
  */
 
-"use client"
+'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 import {
   MessageCircle,
   ThumbsUp,
@@ -34,199 +47,187 @@ import {
   Shield,
   ArrowLeft,
   Heart,
-  Users,
-} from 'lucide-react'
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import ProfileDropdown from "@/components/ProfileDropdown"
-import ForumPostCard from "@/components/ForumPostCard"
-import ForumPagination from "@/components/ForumPagination"
-import { forumAPI } from "@/lib/api"
-import { useAuth } from "@/hooks/use-auth"
-import { useSocket } from "@/hooks/use-socket"
-
-interface ForumPost {
-  _id: string
-  title: string
-  content: string
-  userId?: {
-    firstName?: string
-    lastName?: string
-  }
-  isAnonymous: boolean
-  category: string
-  createdAt: string
-  commentsCount: number
-  likesCount: number
-  views: number
-  isPinned: boolean
-  tags: string[]
-  userLiked?: boolean
-}
+  Users
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import ProfileDropdown from '@/components/ProfileDropdown';
+import ForumPostCard from '@/components/ForumPostCard';
+import ForumPagination from '@/components/ForumPagination';
+import { forumAPI } from '@/lib/api';
+import { useAuth } from '@/hooks/use-auth';
+import { useSocket } from '@/hooks/use-socket';
+import { ForumPost } from '@zenly/shared';
 
 // Constants
-const POSTS_PER_PAGE = 8
+const POSTS_PER_PAGE = 8;
 
 export default function ForumPage() {
-  const router = useRouter()
-  const { user } = useAuth()
-  
+  const router = useRouter();
+  const { user } = useAuth();
+
   // Socket.IO for real-time updates
-  const { connected: socketConnected, on, off, emit } = useSocket({
+  const {
+    connected: socketConnected,
+    on,
+    off,
+    emit
+  } = useSocket({
     autoConnect: true
-  })
+  });
 
   // State management
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-  const [currentPage, setCurrentPage] = useState(1)
-  const [showNewPost, setShowNewPost] = useState(false)
-  const [showReportDialog, setShowReportDialog] = useState(false)
-  const [reportingPostId, setReportingPostId] = useState<string | null>(null)
-  const [reportReason, setReportReason] = useState("")
-  const [profilePicture, setProfilePicture] = useState<string | null>(null)
-  const [posts, setPosts] = useState<ForumPost[]>([])
-  const [loading, setLoading] = useState(true)
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showNewPost, setShowNewPost] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [posts, setPosts] = useState<ForumPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [newPost, setNewPost] = useState({
-    title: "",
-    content: "",
-    category: "",
+    title: '',
+    content: '',
+    category: '',
     isAnonymous: false,
-    tags: "",
-  })
+    tags: ''
+  });
 
   // Refs for optimization
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const forumContainerRef = useRef<HTMLDivElement | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const forumContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Load profile picture
   useEffect(() => {
-    const storedProfilePic = localStorage.getItem("zenly_profile_picture")
+    const storedProfilePic = localStorage.getItem('zenly_profile_picture');
     if (storedProfilePic) {
-      setProfilePicture(storedProfilePic)
+      setProfilePicture(storedProfilePic);
     }
-  }, [])
+  }, []);
 
   // Load posts on mount and when filters change
   useEffect(() => {
-    loadPosts()
-  }, [selectedCategory])
+    loadPosts();
+  }, [selectedCategory]);
 
   // Socket.IO event listeners for real-time updates
   useEffect(() => {
-    if (!socketConnected) return
+    if (!socketConnected) return;
 
     // Join forum room for real-time updates
-    emit('forum:join')
+    emit('forum:join');
 
     // Listen for new posts
     const handleNewPost = (post: ForumPost) => {
-      console.log('[Forum] New post received:', post._id)
-      setPosts(prev => [post, ...prev])
-    }
+      console.log('[Forum] New post received:', post._id);
+      setPosts((prev) => [post, ...prev]);
+    };
 
     // Listen for post updates (likes, comments, etc.)
     const handlePostUpdate = (update: { postId: string; updates: Partial<ForumPost> }) => {
-      console.log('[Forum] Post update received:', update.postId)
-      setPosts(prev => prev.map(post => 
-        post._id === update.postId 
-          ? { ...post, ...update.updates }
-          : post
-      ))
-    }
+      console.log('[Forum] Post update received:', update.postId);
+      setPosts((prev) =>
+        prev.map((post) => (post._id === update.postId ? { ...post, ...update.updates } : post))
+      );
+    };
 
     // Listen for post deletions
     const handlePostDelete = (postId: string) => {
-      console.log('[Forum] Post deleted:', postId)
-      setPosts(prev => prev.filter(post => post._id !== postId))
-    }
+      console.log('[Forum] Post deleted:', postId);
+      setPosts((prev) => prev.filter((post) => post._id !== postId));
+    };
 
-    on('forum:newPost', handleNewPost)
-    on('forum:postUpdate', handlePostUpdate)
-    on('forum:postDelete', handlePostDelete)
+    on('forum:newPost', handleNewPost);
+    on('forum:postUpdate', handlePostUpdate);
+    on('forum:postDelete', handlePostDelete);
 
     return () => {
-      emit('forum:leave')
-      off('forum:newPost', handleNewPost)
-      off('forum:postUpdate', handlePostUpdate)
-      off('forum:postDelete', handlePostDelete)
-    }
-  }, [socketConnected, on, off, emit])
+      emit('forum:leave');
+      off('forum:newPost', handleNewPost);
+      off('forum:postUpdate', handlePostUpdate);
+      off('forum:postDelete', handlePostDelete);
+    };
+  }, [socketConnected, on, off, emit]);
 
   /**
    * Load posts from API
    */
   const loadPosts = useCallback(async () => {
     try {
-      setLoading(true)
-      const params: any = {}
-      if (selectedCategory !== 'all') params.category = selectedCategory
-      
-      const response = await forumAPI.listPosts(params)
+      setLoading(true);
+      const params: any = {};
+      if (selectedCategory !== 'all') params.category = selectedCategory;
+
+      const response = await forumAPI.listPosts(params);
       if (response.success) {
-        setPosts(response.data || [])
+        setPosts(response.data || []);
         // Reset to page 1 when filters change
-        setCurrentPage(1)
+        setCurrentPage(1);
       }
     } catch (error) {
-      console.error('Failed to load posts:', error)
+      console.error('Failed to load posts:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [selectedCategory])
+  }, [selectedCategory]);
 
   /**
    * Frontend search - case-insensitive, filters posts by title, content, and selected tags
    * Posts are sorted by number of matching tags (most matches first)
    */
   const searchPosts = useMemo(() => {
-    let filtered = posts
+    let filtered = posts;
 
     // Text search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(post => 
-        post.title.toLowerCase().includes(query) ||
-        post.content.toLowerCase().includes(query) ||
-        (post.tags && Array.isArray(post.tags) && post.tags.some(tag => tag.toLowerCase().includes(query)))
-      )
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (post) =>
+          post.title.toLowerCase().includes(query) ||
+          post.content.toLowerCase().includes(query) ||
+          (post.tags &&
+            Array.isArray(post.tags) &&
+            post.tags.some((tag) => tag.toLowerCase().includes(query)))
+      );
     }
 
     // Tag filter - posts must have at least one of the selected tags
     if (selectedTags.size > 0) {
-      filtered = filtered.filter(post => {
-        if (!post.tags || !Array.isArray(post.tags)) return false
-        return post.tags.some(tag => selectedTags.has(tag.toLowerCase()))
-      })
+      filtered = filtered.filter((post) => {
+        if (!post.tags || !Array.isArray(post.tags)) return false;
+        return post.tags.some((tag) => selectedTags.has(tag.toLowerCase()));
+      });
 
       // Sort by number of matching tags (most matches at top)
       filtered = filtered.sort((a, b) => {
-        const aMatches = a.tags?.filter(tag => selectedTags.has(tag.toLowerCase())).length || 0
-        const bMatches = b.tags?.filter(tag => selectedTags.has(tag.toLowerCase())).length || 0
-        return bMatches - aMatches
-      })
+        const aMatches = a.tags?.filter((tag) => selectedTags.has(tag.toLowerCase())).length || 0;
+        const bMatches = b.tags?.filter((tag) => selectedTags.has(tag.toLowerCase())).length || 0;
+        return bMatches - aMatches;
+      });
     }
 
-    return filtered
-  }, [posts, searchQuery, selectedTags])
+    return filtered;
+  }, [posts, searchQuery, selectedTags]);
 
   /**
    * Paginate filtered posts
    */
   const paginatedPosts = useMemo(() => {
-    const startIndex = (currentPage - 1) * POSTS_PER_PAGE
-    const endIndex = startIndex + POSTS_PER_PAGE
-    return searchPosts.slice(startIndex, endIndex)
-  }, [searchPosts, currentPage])
+    const startIndex = (currentPage - 1) * POSTS_PER_PAGE;
+    const endIndex = startIndex + POSTS_PER_PAGE;
+    return searchPosts.slice(startIndex, endIndex);
+  }, [searchPosts, currentPage]);
 
   /**
    * Calculate total pages
    */
   const totalPages = useMemo(() => {
-    return Math.ceil(searchPosts.length / POSTS_PER_PAGE)
-  }, [searchPosts])
+    return Math.ceil(searchPosts.length / POSTS_PER_PAGE);
+  }, [searchPosts]);
 
   /**
    * Handle search input with debounce
@@ -234,163 +235,168 @@ export default function ForumPage() {
   const handleSearchChange = useCallback((value: string) => {
     // Clear existing timeout
     if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
+      clearTimeout(searchTimeoutRef.current);
     }
 
     // Debounce search to avoid excessive re-renders
     searchTimeoutRef.current = setTimeout(() => {
-      setSearchQuery(value)
-      setCurrentPage(1) // Reset to first page on search
-    }, 300) // 300ms debounce
-  }, [])
+      setSearchQuery(value);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300); // 300ms debounce
+  }, []);
 
   /**
    * Handle page change - smooth scroll to top
    */
   const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
-    
+    setCurrentPage(page);
+
     // Smooth scroll to top of forum container
     if (forumContainerRef.current) {
-      forumContainerRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      })
+      forumContainerRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
     }
-  }, [])
+  }, []);
 
   /**
    * Handle tag toggle - add/remove from selected tags
    */
   const handleTagToggle = useCallback((tag: string) => {
-    setSelectedTags(prev => {
-      const newTags = new Set(prev)
+    setSelectedTags((prev) => {
+      const newTags = new Set(prev);
       if (newTags.has(tag)) {
-        newTags.delete(tag)
+        newTags.delete(tag);
       } else {
-        newTags.add(tag)
+        newTags.add(tag);
       }
-      setCurrentPage(1) // Reset to first page
-      return newTags
-    })
-  }, [])
+      setCurrentPage(1); // Reset to first page
+      return newTags;
+    });
+  }, []);
 
   const handleLikePost = async (postId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
     if (!user) {
-      router.push('/auth/login')
-      return
+      router.push('/auth/login');
+      return;
     }
 
     try {
-      const response = await forumAPI.likePost(postId)
+      const response = await forumAPI.likePost(postId);
       if (response.success) {
         // Update local state - response.data contains liked and likesCount
-        setPosts(posts.map(post => 
-          post._id === postId 
-            ? { ...post, likesCount: response.data.likesCount, userLiked: response.data.liked }
-            : post
-        ))
-        
+        setPosts(
+          posts.map((post) =>
+            post._id === postId
+              ? { ...post, likesCount: response.data.likesCount, userLiked: response.data.liked }
+              : post
+          )
+        );
+
         if (response.data.liked) {
-          setLikedPosts(new Set(likedPosts).add(postId))
+          setLikedPosts(new Set(likedPosts).add(postId));
         } else {
-          const newLiked = new Set(likedPosts)
-          newLiked.delete(postId)
-          setLikedPosts(newLiked)
+          const newLiked = new Set(likedPosts);
+          newLiked.delete(postId);
+          setLikedPosts(newLiked);
         }
       }
     } catch (error) {
-      console.error('Failed to like post:', error)
+      console.error('Failed to like post:', error);
     }
-  }
+  };
 
   const handleReportPost = (postId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
     if (!user) {
-      router.push('/auth/login')
-      return
+      router.push('/auth/login');
+      return;
     }
-    setReportingPostId(postId)
-    setShowReportDialog(true)
-  }
+    setReportingPostId(postId);
+    setShowReportDialog(true);
+  };
 
   const submitReport = async () => {
-    if (!reportingPostId) return
+    if (!reportingPostId) return;
 
     try {
-      await forumAPI.reportPost(reportingPostId, reportReason)
-      setShowReportDialog(false)
-      setReportReason("")
-      setReportingPostId(null)
+      await forumAPI.reportPost(reportingPostId, reportReason);
+      setShowReportDialog(false);
+      setReportReason('');
+      setReportingPostId(null);
       // Show success message
-      alert('Post reported successfully. Our moderators will review it.')
+      alert('Post reported successfully. Our moderators will review it.');
     } catch (error) {
-      console.error('Failed to report post:', error)
-      alert('Failed to report post. Please try again.')
+      console.error('Failed to report post:', error);
+      alert('Failed to report post. Please try again.');
     }
-  }
+  };
 
   const categories = [
-    "all",
-    "Academic Stress",
-    "Social Connection",
-    "Sleep & Wellness",
-    "Coping Strategies",
-    "Depression",
-    "Anxiety",
-  ]
+    'all',
+    'Academic Stress',
+    'Social Connection',
+    'Sleep & Wellness',
+    'Coping Strategies',
+    'Depression',
+    'Anxiety'
+  ];
 
   const handleSubmitPost = async () => {
     if (!user) {
-      router.push('/auth/login')
-      return
+      router.push('/auth/login');
+      return;
     }
 
     try {
-      const tags = newPost.tags.split(',').map(t => t.trim()).filter(t => t)
+      const tags = newPost.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t);
       const response = await forumAPI.createPost({
         title: newPost.title,
         content: newPost.content,
         category: newPost.category,
         tags,
         isAnonymous: newPost.isAnonymous
-      })
+      });
 
       if (response.success) {
-        setShowNewPost(false)
-        setNewPost({ title: "", content: "", category: "", isAnonymous: false, tags: "" })
-        loadPosts()
+        setShowNewPost(false);
+        setNewPost({ title: '', content: '', category: '', isAnonymous: false, tags: '' });
+        loadPosts();
       }
     } catch (error) {
-      console.error('Failed to create post:', error)
-      alert('Failed to create post. Please try again.')
+      console.error('Failed to create post:', error);
+      alert('Failed to create post. Please try again.');
     }
-  }
+  };
 
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
 
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours}h ago`
-    const diffInDays = Math.floor(diffInHours / 24)
-    if (diffInDays === 1) return "1d ago"
-    if (diffInDays < 7) return `${diffInDays}d ago`
-    const diffInWeeks = Math.floor(diffInDays / 7)
-    if (diffInWeeks === 1) return "1w ago"
-    if (diffInWeeks < 4) return `${diffInWeeks}w ago`
-    return date.toLocaleDateString()
-  }
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return '1d ago';
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks === 1) return '1w ago';
+    if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
+    return date.toLocaleDateString();
+  };
 
   const getAuthorName = (post: ForumPost) => {
-    if (post.isAnonymous) return "Anonymous"
+    if (post.isAnonymous) return 'Anonymous';
     if (post.userId?.firstName || post.userId?.lastName) {
-      return `${post.userId.firstName || ''} ${post.userId.lastName || ''}`.trim()
+      return `${post.userId.firstName || ''} ${post.userId.lastName || ''}`.trim();
     }
-    return "Anonymous"
-  }
+    return 'Anonymous';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -421,8 +427,8 @@ export default function ForumPage() {
               <div>
                 <h3 className="font-semibold text-primary mb-1">Community Guidelines</h3>
                 <p className="text-sm text-muted-foreground">
-                  This is a safe space for peer support. Be respectful, supportive, and remember that everyone's
-                  experience is valid. Trained moderators monitor all posts.
+                  This is a safe space for peer support. Be respectful, supportive, and remember
+                  that everyone's experience is valid. Trained moderators monitor all posts.
                 </p>
               </div>
             </div>
@@ -447,7 +453,7 @@ export default function ForumPage() {
             <SelectContent>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>
-                  {category === "all" ? "All Categories" : category}
+                  {category === 'all' ? 'All Categories' : category}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -483,7 +489,9 @@ export default function ForumPage() {
                       <>
                         <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No posts found matching "{searchQuery}"</p>
-                        <p className="text-sm mt-2">Try a different search term or clear the filter</p>
+                        <p className="text-sm mt-2">
+                          Try a different search term or clear the filter
+                        </p>
                       </>
                     ) : (
                       <>
@@ -492,9 +500,9 @@ export default function ForumPage() {
                           className="mt-4"
                           onClick={() => {
                             if (!user) {
-                              router.push('/auth/login')
+                              router.push('/auth/login');
                             } else {
-                              setShowNewPost(true)
+                              setShowNewPost(true);
                             }
                           }}
                         >
@@ -519,18 +527,19 @@ export default function ForumPage() {
                       isLiked={likedPosts.has(post._id)}
                     />
                   ))}
-                  
+
                   {/* Pagination */}
                   <ForumPagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                   />
-                  
+
                   {/* Results Summary */}
                   <div className="text-center text-sm text-muted-foreground mt-4">
-                    Showing {((currentPage - 1) * POSTS_PER_PAGE) + 1}-
-                    {Math.min(currentPage * POSTS_PER_PAGE, searchPosts.length)} of {searchPosts.length} posts
+                    Showing {(currentPage - 1) * POSTS_PER_PAGE + 1}-
+                    {Math.min(currentPage * POSTS_PER_PAGE, searchPosts.length)} of{' '}
+                    {searchPosts.length} posts
                     {searchQuery && ` matching "${searchQuery}"`}
                   </div>
                 </>
@@ -545,45 +554,44 @@ export default function ForumPage() {
               <CardHeader>
                 <CardTitle className="text-lg">Popular Tags</CardTitle>
                 <CardDescription className="text-xs">
-                  {selectedTags.size > 0 
+                  {selectedTags.size > 0
                     ? `${selectedTags.size} tag${selectedTags.size === 1 ? '' : 's'} selected`
-                    : 'Click to filter posts'
-                  }
+                    : 'Click to filter posts'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    "anxiety",
-                    "depression",
-                    "study-tips",
-                    "friendship",
-                    "sleep",
-                    "stress",
-                    "mindfulness",
-                    "college-life",
+                    'anxiety',
+                    'depression',
+                    'study-tips',
+                    'friendship',
+                    'sleep',
+                    'stress',
+                    'mindfulness',
+                    'college-life'
                   ].map((tag) => {
-                    const isSelected = selectedTags.has(tag)
+                    const isSelected = selectedTags.has(tag);
                     return (
                       <Badge
                         key={tag}
-                        variant={isSelected ? "default" : "outline"}
+                        variant={isSelected ? 'default' : 'outline'}
                         className={`text-xs cursor-pointer transition-all ${
-                          isSelected 
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                          isSelected
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                             : 'hover:bg-primary hover:text-primary-foreground'
                         }`}
                         onClick={() => handleTagToggle(tag)}
                       >
                         #{tag}
                       </Badge>
-                    )
+                    );
                   })}
                 </div>
                 {selectedTags.size > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setSelectedTags(new Set())}
                     className="mt-3 w-full text-xs"
                   >
@@ -617,7 +625,9 @@ export default function ForumPage() {
             {/* Crisis Resources */}
             <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
               <CardContent className="pt-0">
-                <h3 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Need Immediate Help?</h3>
+                <h3 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  Need Immediate Help?
+                </h3>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
                   If you&apos;re in crisis, please reach out for professional help immediately.
                 </p>
@@ -638,9 +648,9 @@ export default function ForumPage() {
         <button
           onClick={() => {
             if (!user) {
-              router.push('/auth/login')
+              router.push('/auth/login');
             } else {
-              setShowNewPost(true)
+              setShowNewPost(true);
             }
           }}
           className="fixed bottom-8 right-8 bg-primary text-primary-foreground rounded-lg p-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
@@ -654,67 +664,72 @@ export default function ForumPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Post</DialogTitle>
-              <DialogDescription>Share your experience or ask for support from the community</DialogDescription>
+              <DialogDescription>
+                Share your experience or ask for support from the community
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Title</label>
-                  <Input
-                    placeholder="What would you like to discuss?"
-                    value={newPost.title}
-                    onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Category</label>
-                  <Select onValueChange={(value) => setNewPost({ ...newPost, category: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.slice(1).map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Content</label>
-                  <Textarea
-                    placeholder="Share your thoughts, experiences, or questions..."
-                    value={newPost.content}
-                    onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                    className="min-h-[150px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Tags (optional)</label>
-                  <Input
-                    placeholder="anxiety, study-tips, friendship (comma separated)"
-                    value={newPost.tags}
-                    onChange={(e) => setNewPost({ ...newPost, tags: e.target.value })}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="anonymous"
-                    checked={newPost.isAnonymous}
-                    onChange={(e) => setNewPost({ ...newPost, isAnonymous: e.target.checked })}
-                    className="rounded"
-                  />
-                  <label htmlFor="anonymous" className="text-sm">
-                    Post anonymously
-                  </label>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  placeholder="What would you like to discuss?"
+                  value={newPost.title}
+                  onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <Select onValueChange={(value) => setNewPost({ ...newPost, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.slice(1).map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Content</label>
+                <Textarea
+                  placeholder="Share your thoughts, experiences, or questions..."
+                  value={newPost.content}
+                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                  className="min-h-[150px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tags (optional)</label>
+                <Input
+                  placeholder="anxiety, study-tips, friendship (comma separated)"
+                  value={newPost.tags}
+                  onChange={(e) => setNewPost({ ...newPost, tags: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="anonymous"
+                  checked={newPost.isAnonymous}
+                  onChange={(e) => setNewPost({ ...newPost, isAnonymous: e.target.checked })}
+                  className="rounded"
+                />
+                <label htmlFor="anonymous" className="text-sm">
+                  Post anonymously
+                </label>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowNewPost(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmitPost} disabled={!newPost.title || !newPost.content || !newPost.category}>
+              <Button
+                onClick={handleSubmitPost}
+                disabled={!newPost.title || !newPost.content || !newPost.category}
+              >
                 Post
               </Button>
             </DialogFooter>
@@ -742,10 +757,13 @@ export default function ForumPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowReportDialog(false)
-                setReportReason("")
-              }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowReportDialog(false);
+                  setReportReason('');
+                }}
+              >
                 Cancel
               </Button>
               <Button onClick={submitReport} disabled={!reportReason.trim()}>
@@ -756,5 +774,5 @@ export default function ForumPage() {
         </Dialog>
       </div>
     </div>
-  )
+  );
 }

@@ -20,7 +20,7 @@ class HuggingFaceService {
       this.client = new InferenceClient(token);
       this.model = process.env.HUGGINGFACE_MODEL || 'zai-org/GLM-4.6';
       this.timeout = parseInt(process.env.AI_TIMEOUT_MS) || 30000;
-      
+
       console.log('[HuggingFace Service] Initialized with:', {
         model: this.model,
         provider: this.provider,
@@ -37,7 +37,7 @@ class HuggingFaceService {
    */
   async generateText(prompt, options = {}) {
     this._ensureInitialized(); // Ensure client is ready
-    
+
     const defaultOptions = {
       temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.7,
       max_tokens: parseInt(process.env.AI_MAX_TOKENS) || 500,
@@ -45,11 +45,13 @@ class HuggingFaceService {
     };
 
     let lastError;
-    
+
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        console.log(`[HuggingFace Service] Generating text (attempt ${attempt}/${this.maxRetries})...`);
-        
+        console.log(
+          `[HuggingFace Service] Generating text (attempt ${attempt}/${this.maxRetries})...`
+        );
+
         // Support two input styles: plain prompt string or message array
         const isMessagesArray = Array.isArray(prompt);
         const messagesPayload = isMessagesArray
@@ -57,7 +59,7 @@ class HuggingFaceService {
           : [
               { role: options.systemRole ? 'system' : 'user', content: options.systemRole || '' },
               { role: 'user', content: isMessagesArray ? '' : prompt }
-            ].filter(m => m.content)
+            ].filter((m) => m.content);
 
         const chatCompletion = await this.client.chatCompletion({
           provider: this.provider,
@@ -68,22 +70,23 @@ class HuggingFaceService {
         });
 
         const responseText = chatCompletion?.choices?.[0]?.message?.content;
-        
+
         if (responseText) {
           console.log('[HuggingFace Service] Successfully generated text');
           return responseText.trim();
         }
 
         throw new Error('No content in response from model');
-        
       } catch (error) {
         lastError = error;
         console.error(`[HuggingFace Service] Attempt ${attempt} failed:`, error.message);
-        
+
         // Don't retry on certain errors
-        if (error.message?.includes('unauthorized') || 
-            error.message?.includes('invalid') ||
-            error.message?.includes('rate limit exceeded')) {
+        if (
+          error.message?.includes('unauthorized') ||
+          error.message?.includes('invalid') ||
+          error.message?.includes('rate limit exceeded')
+        ) {
           throw error;
         }
 
@@ -97,7 +100,9 @@ class HuggingFaceService {
     }
 
     console.error(`[HuggingFace Service] All ${this.maxRetries} attempts failed`);
-    throw new Error(`HuggingFace API failed after ${this.maxRetries} attempts: ${lastError.message}`);
+    throw new Error(
+      `HuggingFace API failed after ${this.maxRetries} attempts: ${lastError.message}`
+    );
   }
 
   /**
@@ -106,9 +111,9 @@ class HuggingFaceService {
    * @param {object} options - Additional options
    * @returns {AsyncGenerator<string>} - Stream of generated text chunks
    */
-  async* generateTextStream(prompt, options = {}) {
+  async *generateTextStream(prompt, options = {}) {
     this._ensureInitialized(); // Ensure client is ready
-    
+
     const defaultOptions = {
       temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.7,
       max_tokens: parseInt(process.env.AI_MAX_TOKENS) || 500,
@@ -117,7 +122,7 @@ class HuggingFaceService {
 
     try {
       console.log('[HuggingFace Service] Starting streaming generation...');
-      
+
       // Note: chatCompletionStream may not be available on all providers
       // For now, we'll use the non-streaming version and yield the full response
       const chatCompletion = await this.client.chatCompletion({
@@ -125,7 +130,7 @@ class HuggingFaceService {
         model: this.model,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: prompt
           }
         ],
@@ -134,17 +139,16 @@ class HuggingFaceService {
       });
 
       const responseText = chatCompletion?.choices?.[0]?.message?.content;
-      
+
       if (responseText) {
         console.log('[HuggingFace Service] Successfully generated streaming text');
         yield responseText;
       } else {
         throw new Error('No content in streaming response');
       }
-      
     } catch (error) {
       console.error('[HuggingFace Service] Streaming error:', error);
-      throw new Error(`Streaming failed: ${error.message}`);
+      throw new Error(`Streaming failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -173,7 +177,7 @@ class HuggingFaceService {
    * @returns {Promise<void>}
    */
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -197,7 +201,7 @@ class HuggingFaceService {
     if (estimatedTokens <= maxTokens) {
       return text;
     }
-    
+
     const maxChars = maxTokens * 4;
     return text.substring(0, maxChars) + '...';
   }

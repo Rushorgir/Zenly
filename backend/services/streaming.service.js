@@ -1,6 +1,6 @@
 /**
  * Streaming Service
- * 
+ *
  * Handles Server-Sent Events (SSE) streaming for real-time AI responses
  * Provides efficient, progressive loading of AI-generated content
  */
@@ -23,8 +23,8 @@ class StreamingService {
    */
   async streamAIResponse(res, conversationId, userMessage, userId) {
     const streamId = `${conversationId}-${Date.now()}`;
-    
-  console.log('[Streaming] Starting SSE stream: %s', streamId);
+
+    console.log('[Streaming] Starting SSE stream: %s', streamId);
 
     // Configure SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -187,9 +187,8 @@ class StreamingService {
         responseLength: fullResponse.length,
         crisis: crisisDetected
       });
-
     } catch (error) {
-  console.error('[Streaming] Stream error: %s', streamId, error);
+      console.error('[Streaming] Stream error: %s', streamId, error);
 
       // Send error event
       this.sendEvent(res, 'error', {
@@ -200,7 +199,8 @@ class StreamingService {
       // Mark message as error
       const lastMsg = await AIMessage.findOne({ conversationId })
         .sort({ createdAt: -1 })
-        .where('status').equals('sending');
+        .where('status')
+        .equals('sending');
 
       if (lastMsg) {
         await AIMessage.findByIdAndUpdate(lastMsg._id, {
@@ -210,12 +210,11 @@ class StreamingService {
           'streaming.complete': false
         });
       }
-
     } finally {
       // Cleanup
       this.activeStreams.delete(streamId);
       res.end();
-  console.log('[Streaming] Stream closed: %s', streamId);
+      console.log('[Streaming] Stream closed: %s', streamId);
     }
   }
 
@@ -224,8 +223,8 @@ class StreamingService {
    */
   async streamJournalAnalysis(res, journalId, _userId) {
     const streamId = `journal-${journalId}-${Date.now()}`;
-    
-  console.log('[Streaming] Starting journal analysis stream: %s', streamId);
+
+    console.log('[Streaming] Starting journal analysis stream: %s', streamId);
 
     // Configure SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -251,7 +250,7 @@ class StreamingService {
         });
 
         // Small delay to make progress visible (remove in production)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       // Perform actual analysis
@@ -263,19 +262,17 @@ class StreamingService {
         analysis
       });
 
-  console.log('[Streaming] Journal analysis stream completed: %s', streamId);
-
+      console.log('[Streaming] Journal analysis stream completed: %s', streamId);
     } catch (error) {
-  console.error('[Streaming] Journal analysis error: %s', streamId, error);
-      
+      console.error('[Streaming] Journal analysis error: %s', streamId, error);
+
       this.sendEvent(res, 'error', {
         error: error.message,
         retryable: this.isRetryableError(error)
       });
-
     } finally {
       res.end();
-  console.log('[Streaming] Journal analysis stream closed: %s', streamId);
+      console.log('[Streaming] Journal analysis stream closed: %s', streamId);
     }
   }
 
@@ -286,7 +283,7 @@ class StreamingService {
     try {
       res.write(`event: ${event}\n`);
       res.write(`data: ${JSON.stringify(data)}\n\n`);
-      
+
       // Ensure the data is flushed immediately
       if (res.flush && typeof res.flush === 'function') {
         res.flush();
@@ -315,9 +312,7 @@ class StreamingService {
       'Service temporarily unavailable'
     ];
 
-    return retryableErrors.some(err => 
-      error.message.includes(err) || error.code === err
-    );
+    return retryableErrors.some((err) => error.message.includes(err) || error.code === err);
   }
 
   /**
@@ -340,7 +335,7 @@ class StreamingService {
    * Close all streams (for shutdown)
    */
   closeAllStreams() {
-  console.log('[Streaming] Closing all active streams (%d)', this.activeStreams.size);
+    console.log('[Streaming] Closing all active streams (%d)', this.activeStreams.size);
     this.activeStreams.clear();
   }
 

@@ -62,7 +62,7 @@ async function makeRequest(endpoint, options = {}) {
     });
 
     const data = await response.json();
-    
+
     if (response.ok) {
       logSuccess(`Status: ${response.status} ${response.statusText}`);
       return { success: true, data, status: response.status };
@@ -79,7 +79,7 @@ async function makeRequest(endpoint, options = {}) {
 
 async function test1_CreateUser() {
   logStep(1, 'Create Test User');
-  
+
   const result = await makeRequest('/auth/signup', {
     method: 'POST',
     skipAuth: true,
@@ -116,14 +116,14 @@ async function test1_CreateUser() {
       return true;
     }
   }
-  
+
   logError('Failed to create or login user');
   return false;
 }
 
 async function test2_CreatePost() {
   logStep(2, 'Create Forum Post');
-  
+
   const result = await makeRequest('/forum/posts', {
     method: 'POST',
     body: JSON.stringify({
@@ -142,14 +142,14 @@ async function test2_CreatePost() {
     logInfo(`Category: ${result.data.data.category}`);
     return true;
   }
-  
+
   logError('Failed to create post');
   return false;
 }
 
 async function test3_GetAllPosts() {
   logStep(3, 'Get All Posts');
-  
+
   const result = await makeRequest('/forum/posts', {
     method: 'GET',
     skipAuth: true
@@ -159,14 +159,14 @@ async function test3_GetAllPosts() {
     logSuccess(`Retrieved ${result.data.data.length} posts`);
     return true;
   }
-  
+
   logError('Failed to get posts');
   return false;
 }
 
 async function test4_GetSinglePost() {
   logStep(4, 'Get Single Post');
-  
+
   if (!testPostId) {
     logError('No test post ID available');
     return false;
@@ -183,14 +183,14 @@ async function test4_GetSinglePost() {
     logInfo(`Likes: ${result.data.data.likesCount}`);
     return true;
   }
-  
+
   logError('Failed to get single post');
   return false;
 }
 
 async function test5_LikePost() {
   logStep(5, 'Like Post');
-  
+
   if (!testPostId) {
     logError('No test post ID available');
     return false;
@@ -205,14 +205,14 @@ async function test5_LikePost() {
     logInfo(`Like count: ${result.data.data.likesCount}`);
     return true;
   }
-  
+
   logError('Failed to like post');
   return false;
 }
 
 async function test6_UnlikePost() {
   logStep(6, 'Unlike Post');
-  
+
   if (!testPostId) {
     logError('No test post ID available');
     return false;
@@ -227,14 +227,14 @@ async function test6_UnlikePost() {
     logInfo(`Like count: ${result.data.data.likesCount}`);
     return true;
   }
-  
+
   logError('Failed to unlike post');
   return false;
 }
 
 async function test7_ReportPost() {
   logStep(7, 'Report Post');
-  
+
   if (!testPostId) {
     logError('No test post ID available');
     return false;
@@ -251,14 +251,14 @@ async function test7_ReportPost() {
     logSuccess('Post reported successfully');
     return true;
   }
-  
+
   logError('Failed to report post');
   return false;
 }
 
 async function test8_AdminGetReportedPosts() {
   logStep(8, 'Admin: Get Reported Posts');
-  
+
   const result = await makeRequest('/admin/forum/reported-posts', {
     method: 'GET'
   });
@@ -267,19 +267,19 @@ async function test8_AdminGetReportedPosts() {
     logSuccess(`Retrieved ${result.data.data.length} reported posts`);
     return true;
   }
-  
+
   if (result.status === 403) {
     logInfo('User is not admin - skipping admin tests');
     return true; // Not an error, just not admin
   }
-  
+
   logError('Failed to get reported posts');
   return false;
 }
 
 async function test9_AdminGetAllPosts() {
   logStep(9, 'Admin: Get All Posts');
-  
+
   const result = await makeRequest('/admin/forum/all-posts', {
     method: 'GET'
   });
@@ -289,19 +289,19 @@ async function test9_AdminGetAllPosts() {
     logInfo(`Total: ${result.data.total}`);
     return true;
   }
-  
+
   if (result.status === 403) {
     logInfo('User is not admin - skipping');
     return true;
   }
-  
+
   logError('Failed to get all posts');
   return false;
 }
 
 async function test10_AddComment() {
   logStep(10, 'Add Comment to Post');
-  
+
   if (!testPostId) {
     logError('No test post ID available');
     return false;
@@ -319,7 +319,7 @@ async function test10_AddComment() {
     logSuccess(`Comment added with ID: ${result.data.data._id}`);
     return true;
   }
-  
+
   logError('Failed to add comment');
   return false;
 }
@@ -357,9 +357,9 @@ async function runAllTests() {
       logError(`Test threw error: ${error.message}`);
       failed++;
     }
-    
+
     // Add delay between tests
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   log('\n' + '█'.repeat(60), 'cyan');
@@ -373,7 +373,7 @@ async function runAllTests() {
 }
 
 // Run tests
-runAllTests().catch(error => {
+runAllTests().catch((error) => {
   logError(`Fatal error: ${error.message}`);
   process.exit(1);
 });

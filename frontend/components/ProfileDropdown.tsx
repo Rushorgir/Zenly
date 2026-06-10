@@ -1,73 +1,73 @@
-"use client"
+'use client';
 
-import { useState, useRef, useEffect } from "react"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
-import { User, Settings, LogOut, UserCircle, Shield } from "lucide-react"
-import { userAPI } from "@/lib/api"
+import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { User, Settings, LogOut, UserCircle, Shield } from 'lucide-react';
+import { userAPI } from '@/lib/api';
 
 export default function ProfileDropdown() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [profilePicture, setProfilePicture] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string>("User")
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const pathname = usePathname()
-  const isAdminPage = pathname === "/admin"
+  const [isOpen, setIsOpen] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('User');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const isAdminPage = pathname === '/admin';
 
   // Load user profile data on mount
   useEffect(() => {
-    loadUserProfile()
-  }, [])
+    loadUserProfile();
+  }, []);
 
   const loadUserProfile = async () => {
     try {
-      const response = await userAPI.getProfile()
+      const response = await userAPI.getProfile();
       if (response.success && response.data) {
-        setProfilePicture(response.data.avatarUrl || null)
-        setUserName(response.data.name || "User")
+        setProfilePicture(response.data.avatarUrl || null);
+        setUserName(response.data.name || 'User');
       }
     } catch (error) {
-      console.error("Failed to load user profile:", error)
+      console.error('Failed to load user profile:', error);
     }
-  }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+        setIsOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSignOut = () => {
     // Clear localStorage and redirect to login
-    localStorage.clear()
-    window.location.href = "/"
-    setIsOpen(false)
-  }
+    localStorage.clear();
+    window.location.href = '/';
+    setIsOpen(false);
+  };
 
   const handleAdminLogout = () => {
     // Clear admin authentication and redirect to dashboard
-    localStorage.removeItem("zenly_admin_authenticated")
-    localStorage.removeItem("zenly_admin_login_time")
-    window.location.href = "/dashboard"
-    setIsOpen(false)
-  }
+    localStorage.removeItem('zenly_admin_authenticated');
+    localStorage.removeItem('zenly_admin_login_time');
+    window.location.href = '/dashboard';
+    setIsOpen(false);
+  };
 
   // Get initials from name
   const getInitials = (name: string) => {
-    const parts = name.split(" ")
+    const parts = name.split(' ');
     if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase()
-  }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -78,9 +78,9 @@ export default function ProfileDropdown() {
       >
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></div>
         {profilePicture ? (
-          <img 
-            src={profilePicture} 
-            alt={userName} 
+          <img
+            src={profilePicture}
+            alt={userName}
             className="w-full h-full rounded-full object-cover relative z-10"
           />
         ) : (
@@ -93,7 +93,7 @@ export default function ProfileDropdown() {
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-48 bg-background border border-border rounded-lg shadow-lg z-50 overflow-hidden">
-          <Link 
+          <Link
             href="/profile"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors cursor-pointer"
@@ -101,9 +101,9 @@ export default function ProfileDropdown() {
             <UserCircle className="h-4 w-4" />
             Profile
           </Link>
-          
+
           {!isAdminPage && (
-            <Link 
+            <Link
               href="/admin/login"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted transition-colors cursor-pointer border-t border-border"
@@ -122,7 +122,7 @@ export default function ProfileDropdown() {
               Exit Admin Mode
             </button>
           )}
-          
+
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-destructive/10 transition-colors cursor-pointer border-t border-border text-left text-destructive"
@@ -133,5 +133,5 @@ export default function ProfileDropdown() {
         </div>
       )}
     </div>
-  )
+  );
 }

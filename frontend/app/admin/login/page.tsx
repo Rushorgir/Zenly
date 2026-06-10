@@ -1,67 +1,67 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Heart, ArrowLeft, Shield, AlertTriangle } from "lucide-react"
-import Link from "next/link"
+import { useState } from 'react';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Heart, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     // Check password locally first
-    if (password !== (process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "qwertyuiop")) {
-      setError("Invalid password. Please try again.")
-      setIsLoading(false)
-      return
+    if (password !== (process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'qwertyuiop')) {
+      setError('Invalid password. Please try again.');
+      setIsLoading(false);
+      return;
     }
 
     try {
       // Mark local admin session for UI flow
-      localStorage.setItem("zenly_admin_authenticated", "true")
-      localStorage.setItem("zenly_admin_login_time", Date.now().toString())
+      localStorage.setItem('zenly_admin_authenticated', 'true');
+      localStorage.setItem('zenly_admin_login_time', Date.now().toString());
 
       // If the user is logged in, call backend to elevate role and refresh tokens
-      const token = localStorage.getItem('zenly_access_token')
+      const token = localStorage.getItem('zenly_access_token');
       if (token) {
         const resp = await fetch(`${API_BASE}/auth/admin-elevate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ password })
-        })
+        });
         if (resp.ok) {
-          const data = await resp.json()
+          const data = await resp.json();
           // Store elevated tokens and user in localStorage to unlock admin API routes
-          localStorage.setItem('zenly_access_token', data.data.accessToken)
-          localStorage.setItem('zenly_refresh_token', data.data.refreshToken)
-          localStorage.setItem('zenly_user', JSON.stringify(data.data.user))
+          localStorage.setItem('zenly_access_token', data.data.accessToken);
+          localStorage.setItem('zenly_refresh_token', data.data.refreshToken);
+          localStorage.setItem('zenly_user', JSON.stringify(data.data.user));
         }
       }
 
       // Redirect to admin dashboard
-      router.push("/admin")
+      router.push('/admin');
     } catch (e) {
-      setError("Failed to elevate admin role. You can still view with limited data.")
+      setError('Failed to elevate admin role. You can still view with limited data.');
     }
-    
-    setIsLoading(false)
-  }
+
+    setIsLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center">
@@ -91,9 +91,7 @@ export default function AdminLoginPage() {
             </div>
           </div>
           <CardTitle className="text-2xl">Admin Login</CardTitle>
-          <CardDescription>
-            Enter the admin password to access the dashboard
-          </CardDescription>
+          <CardDescription>Enter the admin password to access the dashboard</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,12 +116,8 @@ export default function AdminLoginPage() {
               </Alert>
             )}
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading || !password.trim()}
-            >
-              {isLoading ? "Authenticating..." : "Access Admin Dashboard"}
+            <Button type="submit" className="w-full" disabled={isLoading || !password.trim()}>
+              {isLoading ? 'Authenticating...' : 'Access Admin Dashboard'}
             </Button>
           </form>
 
@@ -138,5 +132,5 @@ export default function AdminLoginPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

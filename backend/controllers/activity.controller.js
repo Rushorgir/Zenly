@@ -1,4 +1,4 @@
-import AnalyticsEvent from "../models/analysticsEvent.model.js";
+import { supabase } from '../config/supabase.js';
 
 // GET /activity?limit=2
 export const listRecentActivities = async (req, res) => {
@@ -6,47 +6,52 @@ export const listRecentActivities = async (req, res) => {
     const userId = req.userId;
     const limit = Math.min(parseInt(req.query.limit) || 2, 10);
 
-    const events = await AnalyticsEvent.find({
-      userId,
-      type: { $in: ["journal.created", "resource.viewed"] },
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    const { data: events, error } = await supabase
+      .from('analytics_events')
+      .select('*')
+      .eq('userId', userId)
+      .in('name', ['journal.created', 'resource.viewed'])
+      .order('createdAt', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
 
     // Normalize for frontend consumption
     const activities = events.map((e) => {
       const base = {
-        id: e._id,
-        type: e.type,
-        createdAt: e.createdAt,
+        id: e.id,
+        type: e.name, // Mapping 'name' back to 'type' for frontend compatibility
+        createdAt: e.createdAt
       };
-      if (e.type === "journal.created") {
+
+      const meta = e.meta || {};
+
+      if (e.name === 'journal.created') {
         return {
           ...base,
-          kind: "journal",
-          journalId: e.meta?.journalId,
-          mood: e.meta?.mood ?? null,
-          preview: e.meta?.preview || "",
+          kind: 'journal',
+          journalId: meta.journalId,
+          mood: meta.mood ?? null,
+          preview: meta.preview || ''
         };
       }
-      if (e.type === "resource.viewed") {
+      if (e.name === 'resource.viewed') {
         return {
           ...base,
-          kind: "resource",
-          resourceId: e.meta?.resourceId,
-          resourceType: e.meta?.resourceType,
-          title: e.meta?.title,
-          url: e.meta?.url,
+          kind: 'resource',
+          resourceId: meta.resourceId,
+          resourceType: meta.resourceType,
+          title: meta.title,
+          url: meta.url
         };
       }
-      return { ...base, kind: "unknown", meta: e.meta };
+      return { ...base, kind: 'unknown', meta: e.meta };
     });
 
     res.json({ success: true, data: activities });
   } catch (err) {
-    console.error("[Activity] listRecentActivities error:", err);
-    res.status(500).json({ success: false, error: "Failed to load recent activity" });
+    console.error('[Activity] listRecentActivities error:', err);
+    res.status(500).json({ success: false, error: 'Failed to load recent activity' });
   }
 };
 

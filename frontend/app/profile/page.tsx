@@ -1,320 +1,312 @@
-"use client"
+'use client';
 
-import { useEffect, useState, useRef } from "react"
-import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { 
-  Heart, 
-  ArrowLeft, 
-  User, 
-  LogOut, 
-  Key, 
+import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Heart,
+  ArrowLeft,
+  User,
+  LogOut,
+  Key,
   Settings,
   TrendingUp,
   Calendar,
   Edit,
   Loader2
-} from "lucide-react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
-import { userAPI } from "@/lib/api"
-import { journalAPI, moodAPI } from "@/lib/api"
-
-type Journal = {
-  _id: string
-  content: string
-  mood: number
-  createdAt: string
-}
-
-type MoodEntry = {
-  _id?: string
-  mood: number
-  notes?: string
-  createdAt: string
-}
-
-type UserProfile = {
-  _id: string
-  name: string
-  email: string
-  firstName?: string
-  lastName?: string
-  university?: string
-  academicYear?: string
-  avatarUrl?: string
-  role: string
-}
+} from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { userAPI } from '@/lib/api';
+import { journalAPI, moodAPI } from '@/lib/api';
+import { Journal, MoodEntry, UserProfile } from '@zenly/shared';
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<UserProfile | null>(null)
-  const [journals, setJournals] = useState<Journal[]>([])
-  const [averageMood, setAverageMood] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [daysActive, setDaysActive] = useState(0)
-  const [journalCount, setJournalCount] = useState(0)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [journals, setJournals] = useState<Journal[]>([]);
+  const [averageMood, setAverageMood] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [daysActive, setDaysActive] = useState(0);
+  const [journalCount, setJournalCount] = useState(0);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  })
-  const [changingPassword, setChangingPassword] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadProfileData()
+    loadProfileData();
     // Refresh when returning to the tab
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') loadProfileData()
-    }
+      if (document.visibilityState === 'visible') loadProfileData();
+    };
 
     // Listen for cross-tab updates (other pages can set these keys after creating/updating)
     const onStorage = (e: StorageEvent) => {
-      if (!e.key) return
-      if (e.key === 'zenly_journal_updated' || e.key === 'zenly_mood_updated' || e.key === 'zenly_user') {
-        loadProfileData()
+      if (!e.key) return;
+      if (
+        e.key === 'zenly_journal_updated' ||
+        e.key === 'zenly_mood_updated' ||
+        e.key === 'zenly_user'
+      ) {
+        loadProfileData();
       }
-    }
+    };
 
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('storage', onStorage)
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('storage', onStorage);
 
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   const loadProfileData = async () => {
     try {
-      setLoading(true)
-      
+      setLoading(true);
+
       // Load user profile
-      const profileResponse = await userAPI.getProfile()
+      const profileResponse = await userAPI.getProfile();
       if (profileResponse.success) {
-        setUser(profileResponse.data)
+        setUser(profileResponse.data);
       }
-      
+
       // Load journal entries (use pagination total for accurate count) and moods
-      const journalResponse = await journalAPI.list({ limit: 50 })
-      const moodResponse = await moodAPI.list()
+      const journalResponse = await journalAPI.list({ limit: 50 });
+      const moodResponse = await moodAPI.list();
 
       // journalAPI.list returns { success, journals, pagination }
-      const journalEntries: Journal[] = (journalResponse?.journals) || (journalResponse?.data) || []
-      const totalJournals: number = journalResponse?.pagination?.total ?? journalEntries.length ?? 0
-      setJournalCount(totalJournals)
+      const journalEntries: Journal[] = journalResponse?.journals || journalResponse?.data || [];
+      const totalJournals: number =
+        journalResponse?.pagination?.total ?? journalEntries.length ?? 0;
+      setJournalCount(totalJournals);
 
       // moodAPI.list returns a raw array from backend
       const moodEntries: MoodEntry[] = Array.isArray(moodResponse)
         ? moodResponse
-        : (moodResponse?.data || moodResponse?.moods || [])
+        : moodResponse?.data || moodResponse?.moods || [];
 
-      setJournals(journalEntries)
+      setJournals(journalEntries);
 
       // Combine mood-bearing entries from journals and standalone mood entries
-      const combinedMoodValues: { mood: number; createdAt: string }[] = []
+      const combinedMoodValues: { mood: number; createdAt: string }[] = [];
 
       journalEntries.forEach((j) => {
         if (typeof j.mood === 'number') {
-          combinedMoodValues.push({ mood: j.mood, createdAt: j.createdAt })
+          combinedMoodValues.push({ mood: j.mood, createdAt: j.createdAt });
         }
-      })
+      });
 
       moodEntries.forEach((m) => {
         if (typeof m.mood === 'number') {
           // Mood logs use `date`; fallback to createdAt if present
-          const created = (m as any).date || (m as any).createdAt || new Date().toISOString()
-          combinedMoodValues.push({ mood: m.mood, createdAt: created })
+          const created = (m as any).date || (m as any).createdAt || new Date().toISOString();
+          combinedMoodValues.push({ mood: m.mood, createdAt: created });
         }
-      })
+      });
 
       // Calculate average mood from combined entries
       if (combinedMoodValues.length > 0) {
-        const totalMood = combinedMoodValues.reduce((sum, it) => sum + (it.mood || 0), 0)
-        setAverageMood(Math.round((totalMood / combinedMoodValues.length) * 10) / 10)
+        const totalMood = combinedMoodValues.reduce((sum, it) => sum + (it.mood || 0), 0);
+        setAverageMood(Math.round((totalMood / combinedMoodValues.length) * 10) / 10);
 
         // Calculate days active based on earliest entry
         const earliest = combinedMoodValues.reduce((min, it) => {
-          const t = new Date(it.createdAt).getTime()
-          return t < min ? t : min
-        }, new Date(combinedMoodValues[0].createdAt).getTime())
+          const t = new Date(it.createdAt).getTime();
+          return t < min ? t : min;
+        }, new Date(combinedMoodValues[0].createdAt).getTime());
 
-        const days = Math.max(1, Math.ceil((Date.now() - earliest) / (24 * 60 * 60 * 1000)))
-        setDaysActive(days)
+        const days = Math.max(1, Math.ceil((Date.now() - earliest) / (24 * 60 * 60 * 1000)));
+        setDaysActive(days);
       } else {
-        setAverageMood(0)
-        setDaysActive(0)
+        setAverageMood(0);
+        setDaysActive(0);
       }
     } catch (error) {
-      console.error("Failed to load profile:", error)
+      console.error('Failed to load profile:', error);
       toast({
-        title: "Error",
-        description: "Failed to load profile data",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to load profile data',
+        variant: 'destructive'
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSignOut = () => {
-    localStorage.clear()
-    window.location.href = "/"
-  }
+    localStorage.clear();
+    window.location.href = '/';
+  };
 
   const handleProfilePictureClick = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
       // Check file size (max 5MB before compression)
       if (file.size > 5 * 1024 * 1024) {
         toast({
-          title: "Error",
-          description: "Image size must be less than 5MB",
-          variant: "destructive"
-        })
-        return
+          title: 'Error',
+          description: 'Image size must be less than 5MB',
+          variant: 'destructive'
+        });
+        return;
       }
 
-      setUploadingAvatar(true)
-      
+      setUploadingAvatar(true);
+
       try {
-        const reader = new FileReader()
+        const reader = new FileReader();
         reader.onload = async (e) => {
-          const originalImage = e.target?.result as string
-          
+          const originalImage = e.target?.result as string;
+
           // Compress image before uploading
-          const img = new Image()
+          const img = new Image();
           img.onload = async () => {
-            const canvas = document.createElement('canvas')
-            const ctx = canvas.getContext('2d')
-            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
             // Calculate new dimensions (max 400x400)
-            let width = img.width
-            let height = img.height
-            const maxSize = 400
-            
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 400;
+
             if (width > height) {
               if (width > maxSize) {
-                height = (height * maxSize) / width
-                width = maxSize
+                height = (height * maxSize) / width;
+                width = maxSize;
               }
             } else {
               if (height > maxSize) {
-                width = (width * maxSize) / height
-                height = maxSize
+                width = (width * maxSize) / height;
+                height = maxSize;
               }
             }
-            
-            canvas.width = width
-            canvas.height = height
-            
+
+            canvas.width = width;
+            canvas.height = height;
+
             // Draw and compress
-            ctx?.drawImage(img, 0, 0, width, height)
-            const compressedImage = canvas.toDataURL('image/jpeg', 0.7) // 70% quality
-            
+            ctx?.drawImage(img, 0, 0, width, height);
+            const compressedImage = canvas.toDataURL('image/jpeg', 0.7); // 70% quality
+
             // Upload compressed image to backend
-            const response = await userAPI.updateAvatar(compressedImage)
-            
+            const response = await userAPI.updateAvatar(compressedImage);
+
             if (response.success) {
-              setUser(response.data)
+              setUser(response.data);
               toast({
-                title: "Success",
-                description: "Profile picture updated successfully"
-              })
+                title: 'Success',
+                description: 'Profile picture updated successfully'
+              });
             } else {
-              throw new Error(response.error || "Failed to update avatar")
+              throw new Error(response.error || 'Failed to update avatar');
             }
-          }
-          img.src = originalImage
-        }
-        reader.readAsDataURL(file)
+          };
+          img.src = originalImage;
+        };
+        reader.readAsDataURL(file);
       } catch (error: any) {
-        console.error("Failed to upload avatar:", error)
+        console.error('Failed to upload avatar:', error);
         toast({
-          title: "Error",
-          description: error.message || "Failed to update profile picture",
-          variant: "destructive"
-        })
+          title: 'Error',
+          description: error.message || 'Failed to update profile picture',
+          variant: 'destructive'
+        });
       } finally {
-        setUploadingAvatar(false)
+        setUploadingAvatar(false);
       }
     }
-  }
+  };
 
   const handleChangePassword = async () => {
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    if (
+      !passwordForm.currentPassword ||
+      !passwordForm.newPassword ||
+      !passwordForm.confirmPassword
+    ) {
       toast({
-        title: "Error",
-        description: "Please fill in all password fields",
-        variant: "destructive"
-      })
-      return
+        title: 'Error',
+        description: 'Please fill in all password fields',
+        variant: 'destructive'
+      });
+      return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
-        title: "Error",
-        description: "New passwords do not match",
-        variant: "destructive"
-      })
-      return
+        title: 'Error',
+        description: 'New passwords do not match',
+        variant: 'destructive'
+      });
+      return;
     }
 
     if (passwordForm.newPassword.length < 6) {
       toast({
-        title: "Error",
-        description: "New password must be at least 6 characters long",
-        variant: "destructive"
-      })
-      return
+        title: 'Error',
+        description: 'New password must be at least 6 characters long',
+        variant: 'destructive'
+      });
+      return;
     }
 
-    setChangingPassword(true)
+    setChangingPassword(true);
 
     try {
       const response = await userAPI.changePassword(
         passwordForm.currentPassword,
         passwordForm.newPassword
-      )
+      );
 
       if (response.success) {
         toast({
-          title: "Success",
-          description: "Password changed successfully"
-        })
-        setIsPasswordDialogOpen(false)
+          title: 'Success',
+          description: 'Password changed successfully'
+        });
+        setIsPasswordDialogOpen(false);
         setPasswordForm({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        })
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
       } else {
-        throw new Error(response.error || "Failed to change password")
+        throw new Error(response.error || 'Failed to change password');
       }
     } catch (error: any) {
-      console.error("Failed to change password:", error)
+      console.error('Failed to change password:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to change password",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: error.message || 'Failed to change password',
+        variant: 'destructive'
+      });
     } finally {
-      setChangingPassword(false)
+      setChangingPassword(false);
     }
-  }
+  };
 
   // Prepare line chart data: last 8 journal entries with a mood
   const chartData = (() => {
@@ -325,17 +317,17 @@ export default function ProfilePage() {
       .reverse()
       .map((j) => ({
         time: new Date(j.createdAt).getTime(),
-        mood: j.mood,
-      }))
-    return points
-  })()
+        mood: j.mood
+      }));
+    return points;
+  })();
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
@@ -364,14 +356,14 @@ export default function ProfilePage() {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
-              <div 
+              <div
                 className="relative w-16 h-16 rounded-full bg-muted flex items-center justify-center cursor-pointer group"
                 onClick={handleProfilePictureClick}
               >
                 {user?.avatarUrl ? (
-                  <img 
-                    src={user.avatarUrl} 
-                    alt="Profile" 
+                  <img
+                    src={user.avatarUrl}
+                    alt="Profile"
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
@@ -394,19 +386,21 @@ export default function ProfilePage() {
                 disabled={uploadingAvatar}
               />
               <div>
-                <h2 className="text-2xl font-bold">{user?.name || "User"}</h2>
+                <h2 className="text-2xl font-bold">{user?.name || 'User'}</h2>
                 <p className="text-muted-foreground">
-                  {user?.university || "University not set"}
+                  {user?.university || 'University not set'}
                   {user?.academicYear && ` • ${user.academicYear}`}
                 </p>
-                {user?.role === "admin" && (
-                  <Badge variant="default" className="mt-1">Admin</Badge>
+                {user?.role === 'admin' && (
+                  <Badge variant="default" className="mt-1">
+                    Admin
+                  </Badge>
                 )}
               </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-primary">{journalCount}</p>
                 <p className="text-sm text-muted-foreground">Journal Entries</p>
@@ -420,7 +414,7 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">Days Active</p>
               </div>
             </div>
-            
+
             <div className="mt-6">
               <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
                 <DialogTrigger asChild>
@@ -443,7 +437,9 @@ export default function ProfilePage() {
                         id="current-password"
                         type="password"
                         value={passwordForm.currentPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                        }
                         placeholder="Enter current password"
                       />
                     </div>
@@ -453,7 +449,9 @@ export default function ProfilePage() {
                         id="new-password"
                         type="password"
                         value={passwordForm.newPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                        }
                         placeholder="Enter new password (min 6 characters)"
                       />
                     </div>
@@ -463,7 +461,9 @@ export default function ProfilePage() {
                         id="confirm-password"
                         type="password"
                         value={passwordForm.confirmPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                        }
                         placeholder="Confirm new password"
                       />
                     </div>
@@ -472,12 +472,12 @@ export default function ProfilePage() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        setIsPasswordDialogOpen(false)
+                        setIsPasswordDialogOpen(false);
                         setPasswordForm({
-                          currentPassword: "",
-                          newPassword: "",
-                          confirmPassword: ""
-                        })
+                          currentPassword: '',
+                          newPassword: '',
+                          confirmPassword: ''
+                        });
                       }}
                       disabled={changingPassword}
                     >
@@ -490,7 +490,7 @@ export default function ProfilePage() {
                           Changing...
                         </>
                       ) : (
-                        "Change Password"
+                        'Change Password'
                       )}
                     </Button>
                   </DialogFooter>
@@ -513,26 +513,33 @@ export default function ProfilePage() {
               <ChartContainer
                 className="h-64 w-full"
                 config={{
-                  mood: { label: 'Mood', color: 'hsl(var(--primary))' },
+                  mood: { label: 'Mood', color: 'hsl(var(--primary))' }
                 }}
               >
                 <LineChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="time"
-                    tickFormatter={(v) => new Date(v).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    tickFormatter={(v) =>
+                      new Date(v).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                      })
+                    }
                     minTickGap={24}
                   />
-                  <YAxis domain={[0, 10]} ticks={[0,2,4,6,8,10]} allowDecimals={false} />
+                  <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} allowDecimals={false} />
                   <ChartTooltip
                     cursor={{ strokeDasharray: '3 3' }}
                     content={<ChartTooltipContent formatter={(value) => `${value}/10`} />}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="mood" 
-                    stroke="#000000" 
-                    strokeWidth={2} 
+                  <Line
+                    type="monotone"
+                    dataKey="mood"
+                    stroke="#000000"
+                    strokeWidth={2}
                     dot={{ r: 3, stroke: '#000000', fill: '#000000' }}
                     activeDot={{ r: 4, stroke: '#000000', fill: '#000000' }}
                   />
@@ -550,5 +557,5 @@ export default function ProfilePage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

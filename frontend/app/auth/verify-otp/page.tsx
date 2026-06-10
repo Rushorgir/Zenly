@@ -50,7 +50,7 @@ export default function VerifyOTPPage() {
 
     try {
       const result = await authAPI.verifyOTP(email, otp);
-      
+
       if (result.success) {
         setSuccess('Email verified successfully! Redirecting to dashboard...');
         setTimeout(() => {
@@ -79,7 +79,7 @@ export default function VerifyOTPPage() {
 
     try {
       const result = await authAPI.resendOTP(email);
-      
+
       if (result.success) {
         setSuccess('New verification code sent to your email!');
         setResendCountdown(60); // 60 second cooldown
@@ -108,12 +108,7 @@ export default function VerifyOTPPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="mb-2"
-            >
+            <Button variant="ghost" size="sm" onClick={handleBack} className="mb-2">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
@@ -136,7 +131,7 @@ export default function VerifyOTPPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           {success && (
             <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
               <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -193,9 +188,7 @@ export default function VerifyOTPPage() {
             </Button>
 
             <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Didn't receive the code?
-              </p>
+              <p className="text-sm text-muted-foreground">Didn't receive the code?</p>
               <Button
                 variant="link"
                 onClick={handleResend}

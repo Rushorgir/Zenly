@@ -23,7 +23,7 @@ class CrisisDetectionService {
       keywords: [],
       aiAssessment: null,
       resources: null,
-      requiresAdminAlert: false,
+      requiresAdminAlert: false
     };
 
     // Layer 1: Keyword Detection (Instant)
@@ -33,12 +33,12 @@ class CrisisDetectionService {
 
     if (keywordResult.isCrisis) {
       result.isCrisis = true;
-      
+
       // Layer 2: AI Assessment (2-3 seconds)
       try {
         const aiRiskLevel = await this.getAIRiskAssessment(text);
         result.aiAssessment = aiRiskLevel;
-        
+
         // If AI confirms high risk, escalate
         if (aiRiskLevel === 'high') {
           result.riskLevel = 'high';
@@ -110,11 +110,11 @@ class CrisisDetectionService {
       const prompt = promptsService.buildRiskAssessmentPrompt(text);
       const response = await huggingFaceService.generateText(prompt, {
         max_new_tokens: 10,
-        temperature: 0.3, // Lower temperature for more consistent classification
+        temperature: 0.3 // Lower temperature for more consistent classification
       });
 
       const riskLevel = response.toLowerCase().trim();
-      
+
       if (['high', 'medium', 'low'].includes(riskLevel)) {
         return riskLevel;
       }
@@ -139,40 +139,44 @@ class CrisisDetectionService {
         national: {
           name: 'National Crisis Hotline',
           number: AI_CONFIG.CRISIS.HOTLINES.NATIONAL,
-          available: '24/7',
+          available: '24/7'
         },
         campus: {
           name: 'Campus Counseling',
-          info: AI_CONFIG.CRISIS.HOTLINES.CAMPUS,
-        },
+          info: AI_CONFIG.CRISIS.HOTLINES.CAMPUS
+        }
       },
       urgentMessage: null,
-      suggestions: [],
+      suggestions: []
     };
 
     if (riskLevel === 'high') {
-      resources.urgentMessage = '🆘 URGENT: If you\'re in immediate danger, please call the National Crisis Hotline at ' + 
-                                 AI_CONFIG.CRISIS.HOTLINES.NATIONAL + ' or dial 911.';
+      resources.urgentMessage =
+        "🆘 URGENT: If you're in immediate danger, please call the National Crisis Hotline at " +
+        AI_CONFIG.CRISIS.HOTLINES.NATIONAL +
+        ' or dial 911.';
       resources.suggestions = [
         'Call the crisis hotline NOW - they have trained counselors available 24/7',
-        'If you\'re on campus, go to the counseling center or campus safety',
+        "If you're on campus, go to the counseling center or campus safety",
         'Tell someone you trust - a friend, family member, or RA',
-        'Don\'t stay alone - reach out immediately',
+        "Don't stay alone - reach out immediately"
       ];
     } else if (riskLevel === 'medium') {
-      resources.urgentMessage = '💙 You\'re going through a tough time. Please consider reaching out for professional support.';
+      resources.urgentMessage =
+        "💙 You're going through a tough time. Please consider reaching out for professional support.";
       resources.suggestions = [
         'Schedule an appointment with campus counseling services',
         'Talk to a trusted friend, family member, or mentor',
         'Consider joining a support group',
-        'Call the crisis hotline if you need someone to talk to: ' + AI_CONFIG.CRISIS.HOTLINES.NATIONAL,
+        'Call the crisis hotline if you need someone to talk to: ' +
+          AI_CONFIG.CRISIS.HOTLINES.NATIONAL
       ];
     } else {
       resources.suggestions = [
         'Continue journaling and tracking your mood',
         'Practice self-care activities',
         'Reach out to campus counseling if things get harder',
-        'Connect with friends and support networks',
+        'Connect with friends and support networks'
       ];
     }
 
@@ -189,12 +193,12 @@ class CrisisDetectionService {
     try {
       // Get user info
       const user = await User.findById(userId).select('firstName lastName email');
-      
+
       // Find all admins
       const admins = await User.find({ role: 'admin' }).select('_id');
 
       // Create notifications for all admins
-      const notifications = admins.map(admin => ({
+      const notifications = admins.map((admin) => ({
         userId: admin._id,
         type: 'crisis_alert',
         title: '🆘 CRISIS ALERT - Immediate Attention Required',
@@ -206,9 +210,9 @@ class CrisisDetectionService {
           riskLevel: crisisResult.riskLevel,
           keywords: crisisResult.keywords,
           timestamp: new Date(),
-          messagePreview: text.substring(0, 200),
+          messagePreview: text.substring(0, 200)
         },
-        priority: 'high',
+        priority: 'high'
       }));
 
       await Notification.insertMany(notifications);
@@ -234,12 +238,12 @@ class CrisisDetectionService {
         riskLevel: crisisResult.riskLevel,
         keywords: crisisResult.keywords,
         aiAssessment: crisisResult.aiAssessment,
-        textPreview: text.substring(0, 100),
+        textPreview: text.substring(0, 100)
       });
 
       // For now, we'll use the analytics events model
       const { default: AnalyticsEvent } = await import('../models/analysticsEvent.model.js');
-      
+
       await AnalyticsEvent.create({
         userId,
         eventType: 'crisis_detected',
@@ -247,8 +251,8 @@ class CrisisDetectionService {
           riskLevel: crisisResult.riskLevel,
           keywords: crisisResult.keywords,
           aiAssessment: crisisResult.aiAssessment,
-          timestamp: new Date(),
-        },
+          timestamp: new Date()
+        }
       });
     } catch (error) {
       console.error('Failed to log crisis event:', error);
@@ -267,7 +271,7 @@ class CrisisDetectionService {
       const prompt = promptsService.buildCrisisResponsePrompt(userMessage, crisisResult.riskLevel);
       const aiResponse = await huggingFaceService.generateText(prompt, {
         max_new_tokens: 200,
-        temperature: 0.7,
+        temperature: 0.7
       });
 
       // Append crisis resources
@@ -276,7 +280,7 @@ class CrisisDetectionService {
       fullResponse += '**Crisis Resources:**\n';
       fullResponse += `📞 National Crisis Hotline: ${crisisResult.resources.hotlines.national.number} (${crisisResult.resources.hotlines.national.available})\n`;
       fullResponse += `🏫 ${crisisResult.resources.hotlines.campus.info}\n\n`;
-      
+
       if (crisisResult.resources.suggestions.length > 0) {
         fullResponse += '**Immediate Steps:**\n';
         crisisResult.resources.suggestions.forEach((suggestion, idx) => {
@@ -287,7 +291,7 @@ class CrisisDetectionService {
       return fullResponse;
     } catch (error) {
       console.error('Error generating crisis response:', error);
-      
+
       // Fallback to template response
       return this.getFallbackCrisisResponse(crisisResult);
     }
@@ -299,14 +303,16 @@ class CrisisDetectionService {
    * @returns {string}
    */
   getFallbackCrisisResponse(crisisResult) {
-    let response = "I hear how much pain you're in right now, and I'm deeply concerned about your safety. ";
-    response += "Your life has value, and you deserve support.\n\n";
+    let response =
+      "I hear how much pain you're in right now, and I'm deeply concerned about your safety. ";
+    response += 'Your life has value, and you deserve support.\n\n';
     response += crisisResult.resources.urgentMessage + '\n\n';
     response += '**Crisis Resources:**\n';
     response += `📞 National Crisis Hotline: ${crisisResult.resources.hotlines.national.number} (${crisisResult.resources.hotlines.national.available})\n`;
     response += `🏫 ${crisisResult.resources.hotlines.campus.info}\n\n`;
-    response += 'Please reach out to one of these resources right now. You don\'t have to face this alone.';
-    
+    response +=
+      "Please reach out to one of these resources right now. You don't have to face this alone.";
+
     return response;
   }
 }

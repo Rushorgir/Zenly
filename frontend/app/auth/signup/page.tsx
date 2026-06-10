@@ -1,45 +1,51 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, Eye, EyeOff, ArrowLeft, Shield } from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Heart, Eye, EyeOff, ArrowLeft, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function SignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    university: "",
-    year: "",
-    password: "",
-    confirmPassword: "",
+    firstName: '',
+    lastName: '',
+    email: '',
+    university: '',
+    year: '',
+    password: '',
+    confirmPassword: '',
     agreeTerms: false,
-    anonymousMode: false,
-  })
-  const router = useRouter()
+    anonymousMode: false
+  });
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match")
-      return
+      alert('Passwords do not match');
+      return;
     }
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      const { authAPI } = await import("@/lib/api")
+      const { authAPI } = await import('@/lib/api');
       const result = await authAPI.signup({
         email: formData.email,
         password: formData.password,
@@ -47,34 +53,37 @@ export default function SignupPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         university: formData.university,
-        academicYear: formData.year,
-      })
-      
+        academicYear: formData.year
+      });
+
       if (result.success) {
         // Signup successful - redirect to OTP verification page
-        router.push("/auth/verify-otp")
+        router.push('/auth/verify-otp');
       } else {
-        alert(result.error || "Signup failed. Please try again.")
+        alert(result.error || 'Signup failed. Please try again.');
       }
     } catch (error) {
-      console.error("Signup error:", error)
-      alert(error instanceof Error ? error.message : "Signup failed. Please try again.")
+      console.error('Signup error:', error);
+      alert(error instanceof Error ? error.message : 'Signup failed. Please try again.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Home
           </Link>
@@ -82,13 +91,17 @@ export default function SignupPage() {
             <Heart className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-balance">Join Zenly</h1>
           </div>
-          <p className="text-muted-foreground text-pretty">Start your mental wellness journey today</p>
+          <p className="text-muted-foreground text-pretty">
+            Start your mental wellness journey today
+          </p>
         </div>
 
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Create Account</CardTitle>
-            <CardDescription className="text-center">Fill in your details to get started</CardDescription>
+            <CardDescription className="text-center">
+              Fill in your details to get started
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,7 +157,9 @@ export default function SignupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="year">Academic Year</Label>
-                <Select onValueChange={(value) => setFormData((prev) => ({ ...prev, year: value }))}>
+                <Select
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, year: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select your year" />
                   </SelectTrigger>
@@ -165,7 +180,7 @@ export default function SignupPage() {
                   <Input
                     id="password"
                     name="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="Create a strong password"
                     value={formData.password}
                     onChange={handleInputChange}
@@ -194,7 +209,7 @@ export default function SignupPage() {
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
@@ -236,15 +251,17 @@ export default function SignupPage() {
                   <Checkbox
                     id="terms"
                     checked={formData.agreeTerms}
-                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, agreeTerms: checked as boolean }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, agreeTerms: checked as boolean }))
+                    }
                     required
                   />
                   <Label htmlFor="terms" className="text-sm">
-                    I agree to the{" "}
+                    I agree to the{' '}
                     <Link href="/terms" className="text-primary hover:underline">
                       Terms of Service
-                    </Link>{" "}
-                    and{" "}
+                    </Link>{' '}
+                    and{' '}
                     <Link href="/privacy" className="text-primary hover:underline">
                       Privacy Policy
                     </Link>
@@ -253,13 +270,13 @@ export default function SignupPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading || !formData.agreeTerms}>
-                {isLoading ? "Creating Account..." : "Create Account"}
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Already have an account?{" "}
+                Already have an account?{' '}
                 <Link href="/auth/login" className="text-primary hover:underline font-medium">
                   Sign in
                 </Link>
@@ -275,5 +292,5 @@ export default function SignupPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

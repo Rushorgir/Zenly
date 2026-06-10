@@ -1,6 +1,6 @@
 /**
  * Context Builder Service
- * 
+ *
  * Builds rich, token-aware context for AI operations including:
  * - User profile and preferences
  * - Recent journal entries
@@ -62,12 +62,8 @@ class ContextBuilder {
       // Get recent journals
       if (includeJournals) {
         try {
-          context.recentJournals = await this.getRecentJournals(
-            userId,
-            maxJournals,
-            timeRange
-          );
-          
+          context.recentJournals = await this.getRecentJournals(userId, maxJournals, timeRange);
+
           if (context.recentJournals.length > 0) {
             context.patterns = await this.analyzeJournalPatterns(context.recentJournals);
             context.metadata.includedSources.push('journal-history');
@@ -80,11 +76,8 @@ class ContextBuilder {
       // Get conversation history
       if (includeConversations) {
         try {
-          context.conversationHistory = await this.getRecentMessages(
-            userId,
-            maxMessages
-          );
-          
+          context.conversationHistory = await this.getRecentMessages(userId, maxMessages);
+
           if (context.conversationHistory.length > 0) {
             context.metadata.includedSources.push('conversation-history');
           }
@@ -106,7 +99,6 @@ class ContextBuilder {
       });
 
       return context;
-
     } catch (error) {
       console.error('[Context Builder] Error building context:', error);
       return this.getMinimalContext(userId);
@@ -122,9 +114,9 @@ class ContextBuilder {
       const messages = await AIMessage.find({
         conversationId: conversation._id
       })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
 
       // Build base context
       const context = await this.buildContext(conversation.userId, {
@@ -159,7 +151,6 @@ class ContextBuilder {
       }
 
       return context;
-
     } catch (error) {
       console.error('[Context Builder] Error building conversation context:', error);
       return { conversation: { messages: [] } };
@@ -170,9 +161,7 @@ class ContextBuilder {
    * Get user profile
    */
   async getUserProfile(userId) {
-    const user = await User.findById(userId)
-      .select('name email createdAt')
-      .lean();
+    const user = await User.findById(userId).select('name email createdAt').lean();
 
     if (!user) return null;
 
@@ -195,12 +184,12 @@ class ContextBuilder {
       createdAt: { $gte: startDate },
       deletedAt: null
     })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .select('content mood createdAt aiAnalysis')
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('content mood createdAt aiAnalysis')
+      .lean();
 
-    return journals.map(j => ({
+    return journals.map((j) => ({
       content: j.content.substring(0, 500), // Truncate for token limit
       mood: j.mood,
       date: j.createdAt,
@@ -214,21 +203,19 @@ class ContextBuilder {
    */
   async getRecentMessages(userId, limit = 10) {
     // Get user's conversations
-    const conversations = await AIConversation.find({ userId })
-      .select('_id')
-      .lean();
+    const conversations = await AIConversation.find({ userId }).select('_id').lean();
 
-    const conversationIds = conversations.map(c => c._id);
+    const conversationIds = conversations.map((c) => c._id);
 
     const messages = await AIMessage.find({
       conversationId: { $in: conversationIds }
     })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .select('role content createdAt')
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('role content createdAt')
+      .lean();
 
-    return messages.reverse().map(m => ({
+    return messages.reverse().map((m) => ({
       role: m.role,
       content: m.content.substring(0, 300), // Truncate
       date: m.createdAt
@@ -246,56 +233,55 @@ class ContextBuilder {
     const patterns = {};
 
     // Mood trend
-    const moods = journals.filter(j => j.mood).map(j => j.mood);
+    const moods = journals.filter((j) => j.mood).map((j) => j.mood);
     if (moods.length > 0) {
       const avgMood = moods.reduce((a, b) => a + b, 0) / moods.length;
       const recentMood = moods.slice(0, 2).reduce((a, b) => a + b, 0) / Math.min(2, moods.length);
-      
-      patterns.moodTrend = recentMood > avgMood 
-        ? 'improving' 
-        : recentMood < avgMood 
-          ? 'declining' 
-          : 'stable';
-      
+
+      patterns.moodTrend =
+        recentMood > avgMood ? 'improving' : recentMood < avgMood ? 'declining' : 'stable';
+
       patterns.averageMood = avgMood.toFixed(1);
     }
 
     // Sentiment trend
     const sentiments = journals
-      .filter(j => j.sentiment?.score !== undefined)
-      .map(j => j.sentiment.score);
-    
+      .filter((j) => j.sentiment?.score !== undefined)
+      .map((j) => j.sentiment.score);
+
     if (sentiments.length > 0) {
       const avgSentiment = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
-      patterns.sentimentTrend = avgSentiment > 0.2 
-        ? 'positive' 
-        : avgSentiment < -0.2 
-          ? 'negative' 
-          : 'neutral';
+      patterns.sentimentTrend =
+        avgSentiment > 0.2 ? 'positive' : avgSentiment < -0.2 ? 'negative' : 'neutral';
     }
 
     // Risk assessment
-    const riskLevels = journals
-      .filter(j => j.riskLevel)
-      .map(j => j.riskLevel);
-    
+    const riskLevels = journals.filter((j) => j.riskLevel).map((j) => j.riskLevel);
+
     if (riskLevels.length > 0) {
       const hasHighRisk = riskLevels.includes('high');
       const hasMediumRisk = riskLevels.includes('medium');
-      
-      patterns.recentRiskLevel = hasHighRisk 
-        ? 'high' 
-        : hasMediumRisk 
-          ? 'medium' 
-          : 'low';
+
+      patterns.recentRiskLevel = hasHighRisk ? 'high' : hasMediumRisk ? 'medium' : 'low';
     }
 
     // Common themes (simple keyword extraction)
-    const allContent = journals.map(j => j.content).join(' ').toLowerCase();
-    const keywords = ['stress', 'anxiety', 'depression', 'happy', 'sad', 'work', 'school', 'family', 'friends'];
-    patterns.commonThemes = keywords.filter(keyword => 
-      allContent.includes(keyword)
-    );
+    const allContent = journals
+      .map((j) => j.content)
+      .join(' ')
+      .toLowerCase();
+    const keywords = [
+      'stress',
+      'anxiety',
+      'depression',
+      'happy',
+      'sad',
+      'work',
+      'school',
+      'family',
+      'friends'
+    ];
+    patterns.commonThemes = keywords.filter((keyword) => allContent.includes(keyword));
 
     return patterns;
   }
@@ -312,11 +298,13 @@ class ContextBuilder {
 
     // Analyze message patterns to infer preferences
     if (messages.length > 0) {
-      const userMessages = messages.filter(m => m.role === 'user');
-      
+      const userMessages = messages.filter((m) => m.role === 'user');
+
       if (userMessages.length > 0) {
-        const avgLength = userMessages.reduce((sum, m) => sum + m.content.length, 0) / userMessages.length;
-        preferences.responseLength = avgLength < 100 ? 'short' : avgLength > 300 ? 'long' : 'medium';
+        const avgLength =
+          userMessages.reduce((sum, m) => sum + m.content.length, 0) / userMessages.length;
+        preferences.responseLength =
+          avgLength < 100 ? 'short' : avgLength > 300 ? 'long' : 'medium';
       }
     }
 
@@ -328,12 +316,14 @@ class ContextBuilder {
    */
   truncateToTokenLimit(context, maxTokens = this.MAX_CONTEXT_TOKENS) {
     const estimatedTokens = this.estimateTokens(context);
-    
+
     if (estimatedTokens <= maxTokens) {
       return context;
     }
 
-    console.log(`[Context Builder] Truncating context from ~${estimatedTokens} to ${maxTokens} tokens`);
+    console.log(
+      `[Context Builder] Truncating context from ~${estimatedTokens} to ${maxTokens} tokens`
+    );
 
     // Priority order for truncation:
     // 1. Keep current conversation
@@ -347,7 +337,7 @@ class ContextBuilder {
     // Trim journal content
     if (truncated.recentJournals && truncated.recentJournals.length > 0) {
       truncated.recentJournals = truncated.recentJournals.slice(0, 2);
-      truncated.recentJournals = truncated.recentJournals.map(j => ({
+      truncated.recentJournals = truncated.recentJournals.map((j) => ({
         ...j,
         content: j.content.substring(0, 200)
       }));
@@ -356,7 +346,7 @@ class ContextBuilder {
     // Trim conversation history
     if (truncated.conversationHistory && truncated.conversationHistory.length > 0) {
       truncated.conversationHistory = truncated.conversationHistory.slice(-5);
-      truncated.conversationHistory = truncated.conversationHistory.map(m => ({
+      truncated.conversationHistory = truncated.conversationHistory.map((m) => ({
         ...m,
         content: m.content.substring(0, 150)
       }));
@@ -409,7 +399,7 @@ class ContextBuilder {
     // Recent conversation (if applicable)
     if (context.conversation?.messages?.length > 0) {
       formatted += `\nRecent Conversation:\n`;
-      context.conversation.messages.slice(-5).forEach(msg => {
+      context.conversation.messages.slice(-5).forEach((msg) => {
         formatted += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
       });
     }

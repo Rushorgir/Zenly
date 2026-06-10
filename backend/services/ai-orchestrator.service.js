@@ -1,6 +1,6 @@
 /**
  * AI Orchestrator Service
- * 
+ *
  * Central coordinator for all AI operations including:
  * - Journal analysis workflow
  * - Chat response generation
@@ -30,7 +30,7 @@ class AIOrchestrator {
   async analyzeJournal(journalId) {
     try {
       console.log(`[AI Orchestrator] Starting journal analysis: ${journalId}`);
-      
+
       // Get journal entry
       const journal = await JournalEntry.findById(journalId);
       if (!journal) {
@@ -46,30 +46,36 @@ class AIOrchestrator {
       });
 
       // Execute all analysis tasks in parallel for speed
-      const [sentimentResult, insightsResult, summaryResult, riskResult] = await Promise.allSettled([
-        this.analyzeSentiment(journal.content, context),
-        this.generateInsights(journal.content, context),
-        this.generateSummary(journal.content),
-        this.assessRisk(journal.content, journal.userId) // Pass userId, not context
-      ]);
+      const [sentimentResult, insightsResult, summaryResult, riskResult] = await Promise.allSettled(
+        [
+          this.analyzeSentiment(journal.content, context),
+          this.generateInsights(journal.content, context),
+          this.generateSummary(journal.content),
+          this.assessRisk(journal.content, journal.userId) // Pass userId, not context
+        ]
+      );
 
       // Extract results with fallbacks
       const analysis = {
-        sentiment: sentimentResult.status === 'fulfilled' 
-          ? sentimentResult.value 
-          : this.getFallbackSentiment(journal.content),
-        
-        insights: insightsResult.status === 'fulfilled'
-          ? insightsResult.value
-          : ['Unable to generate insights at this time'],
-        
-        summary: summaryResult.status === 'fulfilled'
-          ? summaryResult.value
-          : journal.content.substring(0, 100) + '...',
-        
-        risk: riskResult.status === 'fulfilled'
-          ? riskResult.value
-          : { level: 'low', factors: [], confidence: 0 }
+        sentiment:
+          sentimentResult.status === 'fulfilled'
+            ? sentimentResult.value
+            : this.getFallbackSentiment(journal.content),
+
+        insights:
+          insightsResult.status === 'fulfilled'
+            ? insightsResult.value
+            : ['Unable to generate insights at this time'],
+
+        summary:
+          summaryResult.status === 'fulfilled'
+            ? summaryResult.value
+            : journal.content.substring(0, 100) + '...',
+
+        risk:
+          riskResult.status === 'fulfilled'
+            ? riskResult.value
+            : { level: 'low', factors: [], confidence: 0 }
       };
 
       // Generate suggested actions based on analysis
@@ -82,7 +88,6 @@ class AIOrchestrator {
       });
 
       return analysis;
-
     } catch (error) {
       console.error('[AI Orchestrator] Journal analysis error: %s', journalId, error);
       throw error;
@@ -118,7 +123,7 @@ Provide sentiment analysis in JSON format:
       });
 
       const parsed = this.parseJSONResponse(response);
-      
+
       return {
         score: parsed.score || 0,
         label: parsed.label || 'neutral',
@@ -126,7 +131,6 @@ Provide sentiment analysis in JSON format:
         primaryEmotions: parsed.primaryEmotions || [],
         reasoning: parsed.reasoning || ''
       };
-
     } catch (error) {
       console.error('[AI Orchestrator] Sentiment analysis error:', error);
       return this.getFallbackSentiment(content);
@@ -146,12 +150,10 @@ Provide sentiment analysis in JSON format:
       });
 
       const parsed = this.parseJSONResponse(response);
-      
-      return parsed.insights || [
-        'Reflection on emotional state',
-        'Consider reaching out to support'
-      ];
 
+      return (
+        parsed.insights || ['Reflection on emotional state', 'Consider reaching out to support']
+      );
     } catch (error) {
       console.error('[AI Orchestrator] Insights generation error:', error);
       return ['Unable to generate insights at this time'];
@@ -175,7 +177,6 @@ Summary:`;
       });
 
       return response.trim();
-
     } catch (error) {
       console.error('[AI Orchestrator] Summary generation error:', error);
       return content.substring(0, 100) + '...';
@@ -188,14 +189,13 @@ Summary:`;
   async assessRisk(content, userId) {
     try {
       const crisisResult = await crisisDetectionService.detectCrisis(content, userId);
-      
+
       return {
         level: crisisResult.riskLevel,
         factors: crisisResult.indicators || [],
         confidence: crisisResult.confidence || 0.5,
         isCrisis: crisisResult.isCrisis
       };
-
     } catch (error) {
       console.error('[AI Orchestrator] Risk assessment error:', error);
       return { level: 'low', factors: [], confidence: 0, isCrisis: false };
@@ -213,8 +213,7 @@ Summary:`;
       console.log(`[AI Orchestrator] Generating chat response for: ${conversationId}`);
 
       // Get conversation
-      const conversation = await AIConversation.findById(conversationId)
-        .populate('journalEntryId');
+      const conversation = await AIConversation.findById(conversationId).populate('journalEntryId');
 
       if (!conversation) {
         throw new Error('Conversation not found');
@@ -224,8 +223,11 @@ Summary:`;
       const context = await contextBuilderService.buildConversationContext(conversation);
 
       // PRIORITY 1: Crisis detection (pass userId, not context)
-      const crisisCheck = await crisisDetectionService.detectCrisis(userMessage, conversation.userId);
-      
+      const crisisCheck = await crisisDetectionService.detectCrisis(
+        userMessage,
+        conversation.userId
+      );
+
       let responseText;
       let metadata = {
         isCrisis: crisisCheck.isCrisis,
@@ -236,7 +238,7 @@ Summary:`;
       // If crisis detected, use crisis response
       if (crisisCheck.isCrisis) {
         console.log(`[AI Orchestrator] Crisis detected in conversation ${conversationId}`);
-        
+
         responseText = await crisisDetectionService.generateCrisisResponse(
           userMessage,
           crisisCheck
@@ -255,23 +257,18 @@ Summary:`;
 
         // Alert admins if high risk
         if (crisisCheck.riskLevel === 'high') {
-          await crisisDetectionService.alertAdmins(
-            conversation.userId,
-            userMessage,
-            crisisCheck
-          );
+          await crisisDetectionService.alertAdmins(conversation.userId, userMessage, crisisCheck);
         }
-
       } else {
         // Normal response with context
-        const promptType = conversation.type === 'journal-reflection' 
-          ? 'reflective' 
-          : 'supportive';
+        const promptType = conversation.type === 'journal-reflection' ? 'reflective' : 'supportive';
 
         // Ensure we pass conversation history and journal context arrays
         const conversationHistory = context.conversation?.messages || [];
         // currentJournal (if present) is a single object; normalize to array
-        const journalContext = context.currentJournal ? [context.currentJournal] : (context.recentJournals || []);
+        const journalContext = context.currentJournal
+          ? [context.currentJournal]
+          : context.recentJournals || [];
 
         const prompt = promptsService.buildChatPrompt(
           userMessage,
@@ -302,7 +299,6 @@ Summary:`;
         content: responseText,
         metadata
       };
-
     } catch (error) {
       console.error('[AI Orchestrator] Chat response error:', error);
       throw error;
@@ -312,11 +308,10 @@ Summary:`;
   /**
    * Generate streaming chat response
    */
-  async* generateStreamingChatResponse(conversationId, userMessage) {
+  async *generateStreamingChatResponse(conversationId, userMessage) {
     try {
       // Get conversation and context
-      const conversation = await AIConversation.findById(conversationId)
-        .populate('journalEntryId');
+      const conversation = await AIConversation.findById(conversationId).populate('journalEntryId');
 
       if (!conversation) {
         throw new Error('Conversation not found');
@@ -325,7 +320,10 @@ Summary:`;
       const context = await contextBuilderService.buildConversationContext(conversation);
 
       // Crisis detection first (pass userId, not context)
-      const crisisCheck = await crisisDetectionService.detectCrisis(userMessage, conversation.userId);
+      const crisisCheck = await crisisDetectionService.detectCrisis(
+        userMessage,
+        conversation.userId
+      );
 
       if (crisisCheck.isCrisis) {
         // Send crisis event
@@ -354,7 +352,9 @@ Summary:`;
       // Normal streaming response
       // Ensure correct argument types: (userMessage, conversationHistory[], journalContext[])
       const conversationHistory = context.conversation?.messages || [];
-      const journalContext = context.currentJournal ? [context.currentJournal] : (context.recentJournals || []);
+      const journalContext = context.currentJournal
+        ? [context.currentJournal]
+        : context.recentJournals || [];
 
       const prompt = promptsService.buildChatPrompt(
         userMessage,
@@ -372,7 +372,7 @@ Summary:`;
 
       for await (const chunk of stream) {
         fullResponse += chunk;
-        
+
         yield {
           type: 'chunk',
           data: { content: chunk, index: chunkIndex++ }
@@ -394,7 +394,6 @@ Summary:`;
         type: 'complete',
         data: { content: fullResponse }
       };
-
     } catch (error) {
       console.error('[AI Orchestrator] Streaming error:', error);
       yield {
@@ -413,10 +412,11 @@ Summary:`;
       return JSON.parse(response);
     } catch {
       // Try to extract JSON from markdown code block
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
-                       response.match(/```\s*([\s\S]*?)\s*```/) ||
-                       response.match(/\{[\s\S]*\}/);
-      
+      const jsonMatch =
+        response.match(/```json\s*([\s\S]*?)\s*```/) ||
+        response.match(/```\s*([\s\S]*?)\s*```/) ||
+        response.match(/\{[\s\S]*\}/);
+
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[1] || jsonMatch[0]);
@@ -425,7 +425,7 @@ Summary:`;
         }
       }
     }
-    
+
     return {}; // Return empty object if parsing fails
   }
 
@@ -436,17 +436,23 @@ Summary:`;
     if (!response || typeof response !== 'string') return false;
     if (response.length < 10) return false;
     if (response.includes('[ERROR]') || response.includes('[FAIL]')) return false;
-    
+
     // Check for empathy indicators (at least one should be present)
     const empathyIndicators = [
-      'understand', 'feel', 'sounds', 'seems', 'might',
-      'help', 'support', 'here', 'talk', 'share'
+      'understand',
+      'feel',
+      'sounds',
+      'seems',
+      'might',
+      'help',
+      'support',
+      'here',
+      'talk',
+      'share'
     ];
-    
-    const hasEmpathy = empathyIndicators.some(word => 
-      response.toLowerCase().includes(word)
-    );
-    
+
+    const hasEmpathy = empathyIndicators.some((word) => response.toLowerCase().includes(word));
+
     return hasEmpathy;
   }
 
@@ -454,15 +460,33 @@ Summary:`;
    * Fallback sentiment analysis using keywords
    */
   getFallbackSentiment(content) {
-    const positiveWords = ['happy', 'joy', 'excited', 'grateful', 'love', 'great', 'wonderful', 'amazing'];
-    const negativeWords = ['sad', 'angry', 'depressed', 'anxious', 'worried', 'scared', 'hate', 'terrible'];
+    const positiveWords = [
+      'happy',
+      'joy',
+      'excited',
+      'grateful',
+      'love',
+      'great',
+      'wonderful',
+      'amazing'
+    ];
+    const negativeWords = [
+      'sad',
+      'angry',
+      'depressed',
+      'anxious',
+      'worried',
+      'scared',
+      'hate',
+      'terrible'
+    ];
 
     const lowerContent = content.toLowerCase();
-    const positiveCount = positiveWords.filter(word => lowerContent.includes(word)).length;
-    const negativeCount = negativeWords.filter(word => lowerContent.includes(word)).length;
+    const positiveCount = positiveWords.filter((word) => lowerContent.includes(word)).length;
+    const negativeCount = negativeWords.filter((word) => lowerContent.includes(word)).length;
 
     const score = (positiveCount - negativeCount) / Math.max(positiveCount + negativeCount, 1);
-    
+
     return {
       score: Math.max(-1, Math.min(1, score)),
       label: score > 0.2 ? 'positive' : score < -0.2 ? 'negative' : 'neutral',
@@ -489,7 +513,9 @@ Summary:`;
 
     // Based on risk
     if (analysis.risk.level === 'high') {
-      actions.push(`Call the National Crisis Hotline: ${process.env.NATIONAL_CRISIS_HOTLINE || '988'}`);
+      actions.push(
+        `Call the National Crisis Hotline: ${process.env.NATIONAL_CRISIS_HOTLINE || '988'}`
+      );
       actions.push('Reach out to campus counseling services immediately');
     } else if (analysis.risk.level === 'medium') {
       actions.push('Schedule a check-in with a counselor this week');
@@ -519,7 +545,10 @@ Journal Context:
 ${context.journalContent}
 
 Previous Conversation:
-${context.previousMessages.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}
+${context.previousMessages
+  .slice(-5)
+  .map((m) => `${m.role}: ${m.content}`)
+  .join('\n')}
 
 Provide empathetic, supportive responses that:
 - Acknowledge their feelings
@@ -567,11 +596,11 @@ Provide empathetic, supportive responses that:
           model: 'glm-4.6'
         }
       };
-
     } catch (error) {
       console.error('[AI Orchestrator] Journal reflection error:', error);
       return {
-        content: "I'm here to support you. I'm experiencing a brief technical issue reflecting on your journal, but your thoughts matter. Would you like to share more about how you're feeling?",
+        content:
+          "I'm here to support you. I'm experiencing a brief technical issue reflecting on your journal, but your thoughts matter. Would you like to share more about how you're feeling?",
         metadata: {
           isCrisis: false,
           riskLevel: 'low',
@@ -587,8 +616,10 @@ Provide empathetic, supportive responses that:
    */
   getFallbackResponse(conversationType) {
     const fallbacks = {
-      'journal-reflection': "I hear you, and your feelings are valid. While I'm having a moment processing your journal entry, please know that your thoughts matter. Would you like to share more about what's on your mind?",
-      'general-chat': "I'm here to support you. I'm experiencing a brief technical issue, but I'm still listening. Could you tell me a bit more about how you're feeling right now?"
+      'journal-reflection':
+        "I hear you, and your feelings are valid. While I'm having a moment processing your journal entry, please know that your thoughts matter. Would you like to share more about what's on your mind?",
+      'general-chat':
+        "I'm here to support you. I'm experiencing a brief technical issue, but I'm still listening. Could you tell me a bit more about how you're feeling right now?"
     };
 
     return fallbacks[conversationType] || fallbacks['general-chat'];

@@ -1,11 +1,11 @@
-"use client"
+'use client';
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Slider } from "@/components/ui/slider"
+import { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import {
   Heart,
   Brain,
@@ -22,99 +22,99 @@ import {
   Library,
   Folder,
   Book,
-  Files,
-} from "lucide-react"
-import Link from "next/link"
-import ProfileDropdown from "@/components/ProfileDropdown"
-import { useAuth } from "@/hooks/use-auth"
-import { journalAPI, moodAPI, activityAPI } from "@/lib/api"
+  Files
+} from 'lucide-react';
+import Link from 'next/link';
+import ProfileDropdown from '@/components/ProfileDropdown';
+import { useAuth } from '@/hooks/use-auth';
+import { journalAPI, moodAPI, activityAPI } from '@/lib/api';
 
 export default function DashboardPage() {
-  const [journalEntry, setJournalEntry] = useState("")
-  const [moodLevel, setMoodLevel] = useState([5])
-  const [showAI, setShowAI] = useState(false)
-  const [aiMessages, setAiMessages] = useState<Array<{ type: "user" | "ai"; content: string }>>([])
-  const [aiInput, setAiInput] = useState("")
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [profilePicture, setProfilePicture] = useState<string | null>(null)
-  const aiPanelRef = useRef<HTMLDivElement>(null)
-  const { user, loading } = useAuth()
-  const [activities, setActivities] = useState<Array<any>>([])
+  const [journalEntry, setJournalEntry] = useState('');
+  const [moodLevel, setMoodLevel] = useState([5]);
+  const [showAI, setShowAI] = useState(false);
+  const [aiMessages, setAiMessages] = useState<Array<{ type: 'user' | 'ai'; content: string }>>([]);
+  const [aiInput, setAiInput] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
+  const { user, loading } = useAuth();
+  const [activities, setActivities] = useState<Array<any>>([]);
 
-  const moodEmojis = ["😢", "😔", "😐", "🙂", "😊", "😄", "🤩", "🥳", "😍", "🌟"]
+  const moodEmojis = ['😢', '😔', '😐', '🙂', '😊', '😄', '🤩', '🥳', '😍', '🌟'];
 
   useEffect(() => {
     // Load profile picture from localStorage
-    const storedProfilePic = localStorage.getItem("zenly_profile_picture")
+    const storedProfilePic = localStorage.getItem('zenly_profile_picture');
     if (storedProfilePic) {
-      setProfilePicture(storedProfilePic)
+      setProfilePicture(storedProfilePic);
     }
     // Load recent activities
     activityAPI
       .listRecent(2)
       .then((res) => {
-        if (res?.success) setActivities(res.data || [])
+        if (res?.success) setActivities(res.data || []);
       })
-      .catch((e) => console.warn("Failed to load recent activities", e))
-  }, [])
+      .catch((e) => console.warn('Failed to load recent activities', e));
+  }, []);
 
   const handleSaveJournal = async () => {
-    if (!journalEntry.trim()) return
+    if (!journalEntry.trim()) return;
 
-    setIsAnalyzing(true)
+    setIsAnalyzing(true);
 
     try {
       // Save journal to backend
       const result = await journalAPI.create({
         content: journalEntry,
-        mood: moodLevel[0],
-      })
+        mood: moodLevel[0]
+      });
 
       // Update today's mood
-      await moodAPI.updateToday(moodLevel[0])
+      await moodAPI.updateToday(moodLevel[0]);
 
       // Clear form
-      setJournalEntry("")
-      
+      setJournalEntry('');
+
       // Show success message (optional)
-      alert("Journal entry saved successfully!")
-      
+      alert('Journal entry saved successfully!');
+
       // Could navigate to journal page or show AI insights
-      window.location.href = "/journal"
+      window.location.href = '/journal';
     } catch (error) {
-      console.error("Failed to save journal", error)
-      alert("Failed to save journal entry. Please try again.")
+      console.error('Failed to save journal', error);
+      alert('Failed to save journal entry. Please try again.');
     } finally {
-      setIsAnalyzing(false)
+      setIsAnalyzing(false);
     }
-  }
+  };
 
   const handleSendMessage = () => {
-    if (!aiInput.trim()) return
+    if (!aiInput.trim()) return;
 
-    setAiMessages((prev) => [...prev, { type: "user", content: aiInput }])
+    setAiMessages((prev) => [...prev, { type: 'user', content: aiInput }]);
 
     // Simulate AI response (in production, this would call the AI API)
     setTimeout(() => {
       const responses = [
         "That's a great question. Let me help you with that...",
         "I understand how you're feeling. Here's what I suggest...",
-        "Thank you for sharing that with me. Have you considered...",
-        "That sounds challenging. Let's work through this together...",
-      ]
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      setAiMessages((prev) => [...prev, { type: "ai", content: randomResponse }])
-    }, 1000)
+        'Thank you for sharing that with me. Have you considered...',
+        "That sounds challenging. Let's work through this together..."
+      ];
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      setAiMessages((prev) => [...prev, { type: 'ai', content: randomResponse }]);
+    }, 1000);
 
-    setAiInput("")
-  }
+    setAiInput('');
+  };
 
   const quickActions = [
-    { icon: <BookOpen className="md:h-7 md:w-7" />, label: "Journal", href: "/journal" },
-    { icon: <Users className="md:h-7 md:w-7" />, label: "Peer Support", href: "/forum" },
-    { icon: <Folder className="md:h-7 md:w-7" />, label: "Resource Hub", href: "/resources" },
-    { icon: <MessageCircle className="md:h-7 md:w-7" />, label: "AI Chat", href: "/chat" },
-  ]
+    { icon: <BookOpen className="md:h-7 md:w-7" />, label: 'Journal', href: '/journal' },
+    { icon: <Users className="md:h-7 md:w-7" />, label: 'Peer Support', href: '/forum' },
+    { icon: <Folder className="md:h-7 md:w-7" />, label: 'Resource Hub', href: '/resources' },
+    { icon: <MessageCircle className="md:h-7 md:w-7" />, label: 'AI Chat', href: '/chat' }
+  ];
 
   if (loading) {
     return (
@@ -124,7 +124,7 @@ export default function DashboardPage() {
           <p>Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -141,10 +141,12 @@ export default function DashboardPage() {
       </nav>
 
       <div className="container mx-auto px-4 py-8">
-        <div className={`transition-all duration-300 ${showAI ? "mr-80" : ""}`}>
+        <div className={`transition-all duration-300 ${showAI ? 'mr-80' : ''}`}>
           {/* Welcome Section */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-2 text-balance">Welcome back, {user?.name || "Student"}!</h2>
+            <h2 className="text-3xl font-bold mb-2 text-balance">
+              Welcome back, {user?.name || 'Student'}!
+            </h2>
             <p className="text-muted-foreground text-pretty">
               How are you feeling today? Take a moment to reflect and share your thoughts.
             </p>
@@ -156,8 +158,12 @@ export default function DashboardPage() {
               <Link key={index} href={action.href}>
                 <Card className="w-[250px] h-[120px] hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
                   <CardContent className="h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
-                    <div className="text-primary flex items-center justify-center">{action.icon}</div>
-                    <span className="text-base md:text-lg font-semibold leading-tight">{action.label}</span>
+                    <div className="text-primary flex items-center justify-center">
+                      {action.icon}
+                    </div>
+                    <span className="text-base md:text-lg font-semibold leading-tight">
+                      {action.label}
+                    </span>
                   </CardContent>
                 </Card>
               </Link>
@@ -172,7 +178,8 @@ export default function DashboardPage() {
                 Daily Journal
               </CardTitle>
               <CardDescription>
-                Share your thoughts, feelings, and experiences. Our AI will provide personalized insights.
+                Share your thoughts, feelings, and experiences. Our AI will provide personalized
+                insights.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -208,7 +215,8 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  Your entries are private and secure. AI analysis helps provide personalized support.
+                  Your entries are private and secure. AI analysis helps provide personalized
+                  support.
                 </p>
                 <Button
                   onClick={handleSaveJournal}
@@ -240,18 +248,31 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {activities.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No recent activity yet. Try saving a journal or exploring resources.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No recent activity yet. Try saving a journal or exploring resources.
+                  </p>
                 )}
                 {activities.map((act) => {
-                  const isJournal = act.kind === 'journal'
-                  const icon = isJournal ? <Brain className="h-5 w-5 text-primary" /> : <Folder className="h-5 w-5 text-primary" />
-                  const title = isJournal ? 'Journal Entry' : `${(act.resourceType || 'Resource')[0].toUpperCase()}${(act.resourceType || 'Resource').slice(1)} Viewed`
-                  const subtitle = isJournal 
-                    ? (act.mood ? `Mood ${act.mood}/10` : (act.preview || '').slice(0, 60))
-                    : (act.title || act.url)
-                  const when = new Date(act.createdAt).toLocaleString()
+                  const isJournal = act.kind === 'journal';
+                  const icon = isJournal ? (
+                    <Brain className="h-5 w-5 text-primary" />
+                  ) : (
+                    <Folder className="h-5 w-5 text-primary" />
+                  );
+                  const title = isJournal
+                    ? 'Journal Entry'
+                    : `${(act.resourceType || 'Resource')[0].toUpperCase()}${(act.resourceType || 'Resource').slice(1)} Viewed`;
+                  const subtitle = isJournal
+                    ? act.mood
+                      ? `Mood ${act.mood}/10`
+                      : (act.preview || '').slice(0, 60)
+                    : act.title || act.url;
+                  const when = new Date(act.createdAt).toLocaleString();
                   return (
-                    <div key={act.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div
+                      key={act.id}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
                         {icon}
                         <div>
@@ -260,13 +281,9 @@ export default function DashboardPage() {
                           <p className="text-xs text-muted-foreground mt-0.5">{when}</p>
                         </div>
                       </div>
-                      {isJournal ? (
-                        <Badge>Saved</Badge>
-                      ) : (
-                        <Badge variant="secondary">Viewed</Badge>
-                      )}
+                      {isJournal ? <Badge>Saved</Badge> : <Badge variant="secondary">Viewed</Badge>}
                     </div>
-                  )
+                  );
                 })}
               </div>
             </CardContent>
@@ -296,21 +313,21 @@ export default function DashboardPage() {
                 {aiMessages.map((message, index) => (
                   <div
                     key={index}
-                    className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}
+                    className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {message.type === "ai" && (
+                    {message.type === 'ai' && (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Bot className="h-4 w-4 text-primary" />
                       </div>
                     )}
                     <div
                       className={`max-w-[80%] p-3 rounded-lg ${
-                        message.type === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                        message.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                       }`}
                     >
                       <p className="text-sm leading-relaxed">{message.content}</p>
                     </div>
-                    {message.type === "user" && (
+                    {message.type === 'user' && (
                       <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
                         <User className="h-4 w-4 text-secondary" />
                       </div>
@@ -327,7 +344,7 @@ export default function DashboardPage() {
                     placeholder="Ask me anything..."
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                   <Button size="sm" onClick={handleSendMessage}>
@@ -340,5 +357,5 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
