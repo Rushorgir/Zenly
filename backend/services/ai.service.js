@@ -38,7 +38,7 @@ const createConversation = async ({ type = 'general-chat', journalEntryId, title
     }
   }
 
-  const { data: emptyConversation, error: emptyError } = await supabase
+  const { data: emptyConversation } = await supabase
     .from('ai_conversations')
     .select('*')
     .eq('userId', userId)
@@ -295,7 +295,7 @@ const deleteConversation = async (id, userId) => {
     throw err;
   }
 
-  const { count: msgCount, error: msgError } = await supabase
+  const { count: msgCount } = await supabase
     .from('ai_messages')
     .delete()
     .eq('conversationId', id)
@@ -376,7 +376,7 @@ const migrateConversationTypes = async (userId) => {
     return { migratedCount: 0 };
   }
 
-  const { data: updated, error } = await supabase
+  const { data: updated } = await supabase
     .from('ai_conversations')
     .update({ type: 'general-chat' })
     .eq('userId', userId)

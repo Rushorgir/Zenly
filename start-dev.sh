@@ -14,31 +14,19 @@ NC='\033[0m' # No Color
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}⚠️  Root dependencies not found. Installing...${NC}"
-    npm install
+    echo -e "${YELLOW}⚠️  Dependencies not found. Installing workspace dependencies...${NC}"
+    npm install --legacy-peer-deps
 fi
 
-if [ ! -d "frontend/node_modules" ]; then
-    echo -e "${YELLOW}⚠️  Frontend dependencies not found. Installing...${NC}"
-    cd frontend && npm install && cd ..
-fi
+# Ensure shared package is built
+echo -e "${BLUE}📦 Building shared packages...${NC}"
+npm run build:shared
 
 echo ""
-echo -e "${BLUE}� Checking MongoDB status...${NC}"
 
-# Check if MongoDB is running
-if brew services list | grep -q "mongodb-community.*started"; then
-    echo -e "${GREEN}✅ MongoDB is already running${NC}"
-else
-    echo -e "${YELLOW}⚠️  MongoDB is not running. Starting it now...${NC}"
-    brew services start mongodb-community
-    echo -e "${YELLOW}   Waiting for MongoDB to initialize...${NC}"
-    sleep 3
-    echo -e "${GREEN}✅ MongoDB started${NC}"
-fi
 
 echo ""
-echo -e "${BLUE}�📝 Starting Backend (Port 5001)...${NC}"
+echo -e "${BLUE}📝 Starting Backend (Port 5001)...${NC}"
 echo -e "${YELLOW}   Logs will appear below${NC}"
 echo ""
 

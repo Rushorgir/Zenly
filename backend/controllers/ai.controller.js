@@ -91,61 +91,6 @@ export const listConversations = async (req, res) => {
     console.log(`[AI LIST] Listing conversations for user ${userId}`);
     console.log(`[AI LIST] Query params:`, { type, status, limit, cursor });
 
-    // Build query - ENFORCE type filter if provided
-    let query;
-
-    // CRITICAL: If type is specified, use $and to combine userId with type filter
-    if (type) {
-      // Match conversations that are:
-      // 1. Belong to this user AND
-      // 2. Either match the type OR have no type (legacy)
-      query = {
-        $and: [
-          { userId },
-          {
-            $or: [
-              { type: type }, // Explicit type match
-              { type: { $exists: false } }, // Legacy conversations without type field
-              { type: null } // Conversations with null type
-            ]
-          }
-        ]
-      };
-      console.log(
-        `[AI LIST] FILTERING by type: "${type}" (including legacy conversations without type)`
-      );
-    } else {
-      query = { userId };
-      console.log(`[AI LIST] WARNING: No type filter - showing ALL types`);
-    }
-
-    // Status filtering (excluding archived by default)
-    if (status) {
-      if (type) {
-        query.$and.push({ status });
-      } else {
-        query.status = status;
-      }
-      console.log(`[AI LIST] FILTERING by status: "${status}"`);
-    } else {
-      if (type) {
-        query.$and.push({ status: { $ne: 'archived' } });
-      } else {
-        query.status = { $ne: 'archived' };
-      }
-      console.log(`[AI LIST] FILTERING out archived conversations`);
-    }
-
-    if (cursor) {
-      if (type) {
-        query.$and.push({ _id: { $lt: cursor } });
-      } else {
-        query._id = { $lt: cursor };
-      }
-    }
-
-    console.log(`[AI LIST] Final MongoDB query:`, JSON.stringify(query, null, 2));
-
     const { results, nextCursor, hasMore } = await aiService.listConversations(
       { type, status, limit, cursor },
       userId

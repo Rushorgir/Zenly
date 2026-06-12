@@ -4,10 +4,9 @@
  */
 
 import AI_CONFIG from '../config/ai.config.js';
-import huggingFaceService from './huggingface.service.js';
+import groqService from './groq.service.js';
 import promptsService from './prompts.service.js';
-import Notification from '../models/notification.model.js';
-import User from '../models/user.model.js';
+import { supabase } from '../config/supabase.js';
 
 class CrisisDetectionService {
   /**
@@ -108,7 +107,7 @@ class CrisisDetectionService {
   async getAIRiskAssessment(text) {
     try {
       const prompt = promptsService.buildRiskAssessmentPrompt(text);
-      const response = await huggingFaceService.generateText(prompt, {
+      const response = await groqService.generateText(prompt, {
         max_new_tokens: 10,
         temperature: 0.3 // Lower temperature for more consistent classification
       });
@@ -192,30 +191,35 @@ class CrisisDetectionService {
   async alertAdmins(userId, text, crisisResult) {
     try {
       // Get user info
-      const user = await User.findById(userId).select('firstName lastName email');
+      const { data: user } = await supabase.from('users').select('firstName, lastName, email').eq('id', userId).single();
 
       // Find all admins
-      const admins = await User.find({ role: 'admin' }).select('_id');
+      const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
 
-      // Create notifications for all admins
-      const notifications = admins.map((admin) => ({
-        userId: admin._id,
-        type: 'crisis_alert',
-        title: '🆘 CRISIS ALERT - Immediate Attention Required',
-        message: `User ${user.firstName} ${user.lastName} (${user.email}) may be in crisis. Risk Level: ${crisisResult.riskLevel.toUpperCase()}`,
-        metadata: {
-          affectedUserId: userId,
-          affectedUserName: `${user.firstName} ${user.lastName}`,
-          affectedUserEmail: user.email,
-          riskLevel: crisisResult.riskLevel,
-          keywords: crisisResult.keywords,
-          timestamp: new Date(),
-          messagePreview: text.substring(0, 200)
-        },
-        priority: 'high'
-      }));
+      if (admins && admins.length > 0) {
+        // Create notifications for all admins
+        const notifications = admins.map((admin) => ({
+          userId: admin.id,
+          type: 'crisis_alert',
+          payload: {
+            title: '🆘 CRISIS ALERT - Immediate Attention Required',
+            message: `User ${user?.firstName} ${user?.lastName} (${user?.email}) may be in crisis. Risk Level: ${crisisResult.riskLevel.toUpperCase()}`,
+            metadata: {
+              affectedUserId: userId,
+              affectedUserName: `${user?.firstName} ${user?.lastName}`,
+              affectedUserEmail: user?.email,
+              riskLevel: crisisResult.riskLevel,
+              keywords: crisisResult.keywords,
+              timestamp: new Date().toISOString(),
+              messagePreview: text.substring(0, 200)
+            },
+            priority: 'high'
+          },
+          createdAt: new Date().toISOString()
+        }));
 
-      await Notification.insertMany(notifications);
+        await supabase.from('notifications').insert(notifications);
+      }
 
       console.log(`🚨 CRISIS ALERT: User ${userId} - Risk Level: ${crisisResult.riskLevel}`);
     } catch (error) {
@@ -241,19 +245,18 @@ class CrisisDetectionService {
         textPreview: text.substring(0, 100)
       });
 
-      // For now, we'll use the analytics events model
-      const { default: AnalyticsEvent } = await import('../models/analysticsEvent.model.js');
-
-      await AnalyticsEvent.create({
-        userId,
-        eventType: 'crisis_detected',
-        eventData: {
-          riskLevel: crisisResult.riskLevel,
-          keywords: crisisResult.keywords,
-          aiAssessment: crisisResult.aiAssessment,
-          timestamp: new Date()
-        }
-      });
+      // TODO: Create a CrisisEvent model or analytics_events table for better tracking
+      // We will just log it for now since MongoDB is removed and analytics_events is not in Postgres schema.
+      // await supabase.from('analytics_events').insert({
+      //   userId,
+      //   eventType: 'crisis_detected',
+      //   eventData: {
+      //     riskLevel: crisisResult.riskLevel,
+      //     keywords: crisisResult.keywords,
+      //     aiAssessment: crisisResult.aiAssessment,
+      //     timestamp: new Date()
+      //   }
+      // });
     } catch (error) {
       console.error('Failed to log crisis event:', error);
     }
@@ -269,7 +272,7 @@ class CrisisDetectionService {
     try {
       // Get AI-generated empathetic response
       const prompt = promptsService.buildCrisisResponsePrompt(userMessage, crisisResult.riskLevel);
-      const aiResponse = await huggingFaceService.generateText(prompt, {
+      const aiResponse = await groqService.generateText(prompt, {
         max_new_tokens: 200,
         temperature: 0.7
       });

@@ -3,14 +3,14 @@
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=54E3AB&background=FFFFFF00&center=true&vCenter=true&width=650&lines=Student+Well-being+Made+Simple;AI+Reflections+%7C+Journaling+%7C+Mood+Tracking;Community+Forums+%7C+Resource+Hub;Built+with+Next.js+%7C+Express+%7C+MongoDB" alt="Typing SVG"/>
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=22&pause=1000&color=54E3AB&background=FFFFFF00&center=true&vCenter=true&width=650&lines=Student+Well-being+Made+Simple;AI+Reflections+%7C+Journaling+%7C+Mood+Tracking;Community+Forums+%7C+Resource+Hub;Built+with+Next.js+%7C+Express+%7C+PostgreSQL" alt="Typing SVG"/>
 </p>
 
 <p align="center">
 	<img src="https://img.shields.io/badge/TypeScript-3776AB?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
 	<img src="https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
 	<img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"/>
-	<img src="https://img.shields.io/badge/MongoDB-local-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB"/>
+	<img src="https://img.shields.io/badge/Supabase-DB-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"/>
 	<img src="https://img.shields.io/badge/Socket.IO-realtime-1ABC9C?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.IO"/>
 	<img src="https://img.shields.io/badge/Recharts-data%20viz-54E3AB?style=for-the-badge" alt="Recharts"/>
 	<img src="https://img.shields.io/badge/ESLint-9-4B32C3?style=for-the-badge&logo=eslint&logoColor=white" alt="ESLint"/>
@@ -27,7 +27,7 @@
 - **Curated resource hub** (live helpful/view counts)
 - **Admin dashboard** with moderation, alerts, user management
 
-Built in a modern **Next.js (App Router)** frontend, backed by a robust **Express/MongoDB** API.
+Built in a modern **Next.js (App Router)** frontend, backed by a robust **Express/PostgreSQL** API.
 
 ---
 
@@ -51,7 +51,7 @@ cd Zenly
 Copy env file and fill out your secrets
 cp backend/.env.example backend/.env
 
-Start both servers (FE + BE, auto-starts MongoDB on Mac)
+Start both servers (FE + BE)
 ./start-dev.sh
 ```
 
@@ -68,7 +68,7 @@ Start both servers (FE + BE, auto-starts MongoDB on Mac)
 ```
 
 - Installs dependencies
-- Starts MongoDB (if not running)
+
 - Runs backend & frontend servers
 
 **API Endpoints:** See [API Overview](#api-overview-high-level) for routes and usage.
@@ -76,7 +76,7 @@ Start both servers (FE + BE, auto-starts MongoDB on Mac)
 ---
 
 ## 🐛 Troubleshooting
-- MongoDB not running → `brew services start mongodb-community` (Mac) or use Atlas
+
 - CORS errors → Set `FRONTEND_URL` in backend `.env`
 - Token issues → Auto-refresh is handled; if stuck, login again
 - SSE/Socket.IO not streaming → Ensure proxy allows streaming, CORS whitelists are correct
@@ -110,7 +110,8 @@ Zenly/
 ## ⚙️ Configuration
 
 ### **Backend (`backend/.env`):**
-- `MONGO_URI` — Mongo connection URI
+- `SUPABASE_URL` — Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` — Your Supabase service role API key
 - `PORT` — API port
 - `FRONTEND_URL` — Allowed CORS origin
 - `JWT_ACCESS_SECRET, JWT_REFRESH_SECRET` — JWT secrets

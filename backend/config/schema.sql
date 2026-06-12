@@ -14,17 +14,17 @@ CREATE TABLE users (
     role VARCHAR DEFAULT 'user',
     "avatarUrl" VARCHAR,
     "emailVerified" BOOLEAN DEFAULT false,
-    "emailVerifiedAt" TIMESTAMP,
+    "emailVerifiedAt" TIMESTAMPTZ,
     "verificationOTP" VARCHAR,
-    "otpExpiry" TIMESTAMP,
+    "otpExpiry" TIMESTAMPTZ,
     "otpAttempts" INTEGER DEFAULT 0,
-    "lastOTPSentAt" TIMESTAMP,
+    "lastOTPSentAt" TIMESTAMPTZ,
     "isAnonymous" BOOLEAN DEFAULT false,
-    "lastActive" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "lastActive" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     preferences JSONB DEFAULT '{"notifications":true,"emailUpdates":true,"publicProfile":false}',
     "counselorDetails" JSONB,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Journal Entries
@@ -38,9 +38,9 @@ CREATE TABLE journal_entries (
     "aiAnalysis" JSONB,
     "reflectionMessages" JSONB DEFAULT '[]',
     visibility VARCHAR DEFAULT 'private',
-    "deletedAt" TIMESTAMP,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "deletedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- AI Conversations
@@ -49,8 +49,8 @@ CREATE TABLE ai_conversations (
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
     "journalEntryId" UUID REFERENCES journal_entries(id) ON DELETE CASCADE,
     title VARCHAR,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- AI Messages
@@ -62,7 +62,7 @@ CREATE TABLE ai_messages (
     content TEXT,
     metadata JSONB,
     feedback JSONB,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Analytics Events
@@ -71,7 +71,7 @@ CREATE TABLE analytics_events (
     "userId" UUID REFERENCES users(id) ON DELETE SET NULL,
     name VARCHAR NOT NULL,
     meta JSONB,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Forum Posts
@@ -86,12 +86,12 @@ CREATE TABLE forum_posts (
     tags TEXT[] DEFAULT '{}',
     reports JSONB DEFAULT '[]',
     "isFlagged" BOOLEAN DEFAULT false,
-    "deletedAt" TIMESTAMP,
+    "deletedAt" TIMESTAMPTZ,
     views INTEGER DEFAULT 0,
     "likesCount" INTEGER DEFAULT 0,
     "commentsCount" INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Forum Comments
@@ -105,8 +105,8 @@ CREATE TABLE forum_comments (
     depth INTEGER DEFAULT 0,
     "likesCount" INTEGER DEFAULT 0,
     "isDeleted" BOOLEAN DEFAULT false,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Forum Reactions
@@ -116,8 +116,8 @@ CREATE TABLE forum_reactions (
     "commentId" UUID REFERENCES forum_comments(id) ON DELETE CASCADE,
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR DEFAULT 'like',
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE ("postId", "userId"),
     UNIQUE ("commentId", "userId")
 );
@@ -139,8 +139,8 @@ CREATE TABLE mood_logs (
     date DATE NOT NULL,
     mood INTEGER,
     notes TEXT,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE ("userId", date)
 );
 
@@ -150,9 +150,9 @@ CREATE TABLE notifications (
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR,
     payload JSONB,
-    "readAt" TIMESTAMP,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "readAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Resources
@@ -174,6 +174,6 @@ CREATE TABLE resources (
     "viewCount" INTEGER DEFAULT 0,
     "helpfulCount" INTEGER DEFAULT 0,
     "isActive" BOOLEAN DEFAULT true,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

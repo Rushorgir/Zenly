@@ -3,11 +3,9 @@
  * Manages conversation history and journal context for AI interactions
  */
 
-import AIMessage from '../models/aiMessage.model.js';
-import AIConversation from '../models/aiConversation.model.js';
-import JournalEntry from '../models/journalEntry.model.js';
 import AI_CONFIG from '../config/ai.config.js';
-import huggingFaceService from './huggingface.service.js';
+import groqService from './groq.service.js';
+import { supabase } from '../config/supabase.js';
 
 class MemoryService {
   /**
@@ -19,20 +17,23 @@ class MemoryService {
   async getConversationContext(conversationId, userId) {
     try {
       // Get recent messages from this conversation
-      const messages = await AIMessage.find({ conversationId })
-        .sort({ createdAt: -1 })
-        .limit(AI_CONFIG.CONTEXT.MAX_MESSAGES_IN_CONTEXT)
-        .lean();
+      const { data: messagesData } = await supabase.from('ai_messages')
+        .select('*')
+        .eq('conversationId', conversationId)
+        .order('createdAt', { ascending: false })
+        .limit(AI_CONFIG.CONTEXT.MAX_MESSAGES_IN_CONTEXT);
+
+      const messages = messagesData || [];
 
       // Get recent journal entries for context
-      const journalEntries = await JournalEntry.find({
-        userId,
-        deletedAt: null
-      })
-        .sort({ createdAt: -1 })
-        .limit(AI_CONFIG.CONTEXT.MAX_JOURNAL_ENTRIES)
-        .select('content aiSummary mood tags createdAt')
-        .lean();
+      const { data: journalEntriesData } = await supabase.from('journal_entries')
+        .select('content, aiAnalysis, mood, tags, createdAt')
+        .eq('userId', userId)
+        .is('deletedAt', null)
+        .order('createdAt', { ascending: false })
+        .limit(AI_CONFIG.CONTEXT.MAX_JOURNAL_ENTRIES);
+
+      const journalEntries = journalEntriesData || [];
 
       // Reverse messages to get chronological order
       messages.reverse();
@@ -66,12 +67,13 @@ class MemoryService {
    */
   async saveMessage(conversationId, role, content, metadata = {}) {
     try {
-      const message = await AIMessage.create({
+      const { data: message } = await supabase.from('ai_messages').insert({
         conversationId,
         role,
         content,
-        metadata
-      });
+        metadata,
+        createdAt: new Date().toISOString()
+      }).select().single();
 
       return message;
     } catch (error) {
@@ -89,19 +91,23 @@ class MemoryService {
   async getOrCreateConversation(userId, journalEntryId = null) {
     try {
       // Try to find active conversation
-      let conversation = await AIConversation.findOne({
-        userId,
-        journalEntryId: journalEntryId || null
-        // Get most recent conversation
-      }).sort({ createdAt: -1 });
+      let query = supabase.from('ai_conversations').select('*').eq('userId', userId);
+      if (journalEntryId) {
+          query = query.eq('journalEntryId', journalEntryId);
+      } else {
+          query = query.is('journalEntryId', null);
+      }
+      let { data: conversation } = await query.order('createdAt', { ascending: false }).limit(1).single();
 
       // Create new if none exists
       if (!conversation) {
-        conversation = await AIConversation.create({
+        const { data: newConv } = await supabase.from('ai_conversations').insert({
           userId,
           journalEntryId,
-          title: 'New Conversation'
-        });
+          title: 'New Conversation',
+          createdAt: new Date().toISOString()
+        }).select().single();
+        conversation = newConv;
       }
 
       return conversation;
@@ -129,7 +135,7 @@ class MemoryService {
       totalText += (entry.aiSummary || '') + ' ';
     });
 
-    return huggingFaceService.estimateTokens(totalText);
+    return groqService.estimateTokens(totalText);
   }
 
   /**
@@ -160,14 +166,19 @@ class MemoryService {
   async getUserPreferences(userId) {
     try {
       // Analyze user's journal history for patterns
-      const recentJournals = await JournalEntry.find({
-        userId,
-        deletedAt: null
-      })
-        .sort({ createdAt: -1 })
-        .limit(20)
-        .select('mood tags sentiment riskLevel')
-        .lean();
+      const { data: recentJournalsData } = await supabase.from('journal_entries')
+        .select('mood, tags, aiAnalysis')
+        .eq('userId', userId)
+        .is('deletedAt', null)
+        .order('createdAt', { ascending: false })
+        .limit(20);
+
+      const recentJournals = (recentJournalsData || []).map(j => ({
+        mood: j.mood,
+        tags: j.tags,
+        sentiment: j.aiAnalysis?.sentiment,
+        riskLevel: j.aiAnalysis?.riskAssessment?.level
+      }));
 
       // Extract patterns
       const moodPattern = this.extractMoodPattern(recentJournals);
@@ -237,16 +248,16 @@ class MemoryService {
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
       // Delete old conversations and their messages
-      const oldConversations = await AIConversation.find({
-        createdAt: { $lt: cutoffDate }
-      }).select('_id');
+      const { data: oldConversations } = await supabase.from('ai_conversations')
+        .select('id')
+        .lt('createdAt', cutoffDate.toISOString());
 
-      const conversationIds = oldConversations.map((c) => c._id);
-
-      await AIMessage.deleteMany({ conversationId: { $in: conversationIds } });
-      await AIConversation.deleteMany({ _id: { $in: conversationIds } });
-
-      console.log(`Cleaned up ${conversationIds.length} old conversations`);
+      if (oldConversations && oldConversations.length > 0) {
+        const conversationIds = oldConversations.map(c => c.id);
+        await supabase.from('ai_messages').delete().in('conversationId', conversationIds);
+        await supabase.from('ai_conversations').delete().in('id', conversationIds);
+        console.log(`Cleaned up ${conversationIds.length} old conversations`);
+      }
     } catch (error) {
       console.error('Error cleaning up conversations:', error);
     }

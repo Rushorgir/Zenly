@@ -9,10 +9,7 @@
  * - Risk indicators
  */
 
-import JournalEntry from '../models/journalEntry.model.js';
-import AIConversation from '../models/aiConversation.model.js';
-import AIMessage from '../models/aiMessage.model.js';
-import User from '../models/user.model.js';
+import { supabase } from '../config/supabase.js';
 
 class ContextBuilder {
   constructor() {
@@ -111,12 +108,13 @@ class ContextBuilder {
   async buildConversationContext(conversation) {
     try {
       // Get last N messages from this conversation
-      const messages = await AIMessage.find({
-        conversationId: conversation._id
-      })
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .lean();
+      const { data: messages } = await supabase.from('ai_messages')
+        .select('*')
+        .eq('conversationId', conversation.id || conversation._id)
+        .order('createdAt', { ascending: false })
+        .limit(10);
+
+      const msgs = messages || [];
 
       // Build base context
       const context = await this.buildContext(conversation.userId, {
@@ -128,14 +126,14 @@ class ContextBuilder {
       // Add conversation-specific data
       context.conversation = {
         type: conversation.type,
-        messageCount: messages.length,
-        messages: messages.reverse() // Chronological order
+        messageCount: msgs.length,
+        messages: msgs.reverse() // Chronological order
       };
 
       // If journal-based conversation, include the journal
       if (conversation.journalEntryId) {
         try {
-          const journal = await JournalEntry.findById(conversation.journalEntryId).lean();
+          const { data: journal } = await supabase.from('journal_entries').select('*').eq('id', conversation.journalEntryId).single();
           if (journal) {
             context.currentJournal = {
               content: journal.content,
@@ -161,12 +159,12 @@ class ContextBuilder {
    * Get user profile
    */
   async getUserProfile(userId) {
-    const user = await User.findById(userId).select('name email createdAt').lean();
+    const { data: user } = await supabase.from('users').select('firstName, lastName, email, createdAt').eq('id', userId).single();
 
     if (!user) return null;
 
     return {
-      name: user.name,
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User',
       joinedAt: user.createdAt
     };
   }
@@ -179,15 +177,15 @@ class ContextBuilder {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const journals = await JournalEntry.find({
-      userId,
-      createdAt: { $gte: startDate },
-      deletedAt: null
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .select('content mood createdAt aiAnalysis')
-      .lean();
+    const { data: journals } = await supabase.from('journal_entries')
+      .select('content, mood, createdAt, aiAnalysis')
+      .eq('userId', userId)
+      .is('deletedAt', null)
+      .gte('createdAt', startDate.toISOString())
+      .order('createdAt', { ascending: false })
+      .limit(limit);
+
+    if (!journals) return [];
 
     return journals.map((j) => ({
       content: j.content.substring(0, 500), // Truncate for token limit
@@ -203,17 +201,18 @@ class ContextBuilder {
    */
   async getRecentMessages(userId, limit = 10) {
     // Get user's conversations
-    const conversations = await AIConversation.find({ userId }).select('_id').lean();
+    const { data: conversations } = await supabase.from('ai_conversations').select('id').eq('userId', userId);
+    if (!conversations || conversations.length === 0) return [];
 
-    const conversationIds = conversations.map((c) => c._id);
+    const conversationIds = conversations.map((c) => c.id);
 
-    const messages = await AIMessage.find({
-      conversationId: { $in: conversationIds }
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .select('role content createdAt')
-      .lean();
+    const { data: messages } = await supabase.from('ai_messages')
+      .select('role, content, createdAt')
+      .in('conversationId', conversationIds)
+      .order('createdAt', { ascending: false })
+      .limit(limit);
+
+    if (!messages) return [];
 
     return messages.reverse().map((m) => ({
       role: m.role,

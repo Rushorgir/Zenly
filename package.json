@@ -28,7 +28,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
-    "next": "^16.2.7",
+    "next": "^16.2.9",
     "prettier": "^3.8.4",
     "type-coverage": "^2.29.7",
     "typedoc": "^0.28.19",
@@ -42,8 +42,13 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^8.0.11",
+
     "nodemon": "^3.1.10",
     "otp-generator": "^4.0.1"
+  },
+  "overrides": {
+    "postcss": "^8.5.15"
   }
 }
+

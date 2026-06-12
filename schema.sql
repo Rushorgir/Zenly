@@ -3,149 +3,187 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Table: ai_conversations
+-- Users
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR UNIQUE NOT NULL,
+    "passwordHash" VARCHAR,
+    name VARCHAR NOT NULL,
+    "firstName" VARCHAR,
+    "lastName" VARCHAR,
+    university VARCHAR,
+    "academicYear" VARCHAR,
+    role VARCHAR DEFAULT 'user',
+    "avatarUrl" VARCHAR,
+    "emailVerified" BOOLEAN DEFAULT false,
+    "emailVerifiedAt" TIMESTAMPTZ,
+    "verificationOTP" VARCHAR,
+    "otpExpiry" TIMESTAMPTZ,
+    "otpAttempts" INTEGER DEFAULT 0,
+    "lastOTPSentAt" TIMESTAMPTZ,
+    "isAnonymous" BOOLEAN DEFAULT false,
+    "lastActive" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    preferences JSONB DEFAULT '{"notifications":true,"emailUpdates":true,"publicProfile":false}',
+    "counselorDetails" JSONB,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Journal Entries
+CREATE TABLE journal_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    mood INTEGER,
+    tags TEXT[] DEFAULT '{}',
+    status VARCHAR DEFAULT 'draft',
+    "aiAnalysis" JSONB,
+    "reflectionMessages" JSONB DEFAULT '[]',
+    visibility VARCHAR DEFAULT 'private',
+    "deletedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI Conversations
 CREATE TABLE ai_conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
-    "journalEntryId" UUID, -- references journal_entries(id) 
-    title TEXT,
-    type TEXT DEFAULT 'general-chat',
-    status TEXT DEFAULT 'active',
-    context JSONB DEFAULT '{}'::jsonb,
+    "journalEntryId" UUID REFERENCES journal_entries(id) ON DELETE CASCADE,
+    title VARCHAR,
+    type VARCHAR DEFAULT 'general-chat',
+    status VARCHAR DEFAULT 'active',
+    summary TEXT,
+    context JSONB DEFAULT '{"recentJournals": [], "userPreferences": {}, "conversationGoals": [], "topicsDiscussed": []}',
+    "crisisDetected" BOOLEAN DEFAULT false,
+    "crisisLevel" VARCHAR,
     "messageCount" INTEGER DEFAULT 0,
-    "lastMessageAt" TIMESTAMP WITH TIME ZONE,
-    "crisisDetected" BOOLEAN DEFAULT FALSE,
-    "crisisLevel" TEXT,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    "lastMessageAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_ai_conversations_userid ON ai_conversations("userId");
 
--- Table: ai_messages
+-- AI Messages
 CREATE TABLE ai_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "conversationId" UUID REFERENCES ai_conversations(id) ON DELETE CASCADE,
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    role VARCHAR CHECK (role IN ('user', 'assistant', 'system')),
     content TEXT,
-    metadata JSONB DEFAULT '{}'::jsonb,
-    feedback JSONB DEFAULT '{}'::jsonb,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    metadata JSONB,
+    feedback JSONB,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_ai_messages_convid ON ai_messages("conversationId");
 
--- Table: forum_posts
+-- Analytics Events
+CREATE TABLE analytics_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "userId" UUID REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR NOT NULL,
+    meta JSONB,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Forum Posts
 CREATE TABLE forum_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
+    title VARCHAR NOT NULL,
     content TEXT NOT NULL,
-    category TEXT,
+    "isAnonymous" BOOLEAN DEFAULT false,
+    category VARCHAR,
+    "isPinned" BOOLEAN DEFAULT false,
     tags TEXT[] DEFAULT '{}',
-    "isAnonymous" BOOLEAN DEFAULT FALSE,
-    "isPinned" BOOLEAN DEFAULT FALSE,
+    reports JSONB DEFAULT '[]',
+    "isFlagged" BOOLEAN DEFAULT false,
+    "deletedAt" TIMESTAMPTZ,
     views INTEGER DEFAULT 0,
     "likesCount" INTEGER DEFAULT 0,
     "commentsCount" INTEGER DEFAULT 0,
-    "isModerated" BOOLEAN DEFAULT FALSE,
-    "isFlagged" BOOLEAN DEFAULT FALSE,
-    "reportCount" INTEGER DEFAULT 0,
-    reports JSONB DEFAULT '[]'::jsonb,
-    "deletedAt" TIMESTAMP WITH TIME ZONE,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_forum_posts_created ON forum_posts("createdAt" DESC);
-CREATE INDEX idx_forum_posts_category ON forum_posts(category);
 
--- Table: forum_comments
+-- Forum Comments
 CREATE TABLE forum_comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "postId" UUID REFERENCES forum_posts(id) ON DELETE CASCADE,
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     "parentCommentId" UUID REFERENCES forum_comments(id) ON DELETE CASCADE,
+    "isAnonymous" BOOLEAN DEFAULT false,
     depth INTEGER DEFAULT 0,
-    "repliesCount" INTEGER DEFAULT 0,
-    "isAnonymous" BOOLEAN DEFAULT FALSE,
     "likesCount" INTEGER DEFAULT 0,
-    "isModerated" BOOLEAN DEFAULT FALSE,
-    "isFlagged" BOOLEAN DEFAULT FALSE,
-    "reportCount" INTEGER DEFAULT 0,
-    reports JSONB DEFAULT '[]'::jsonb,
-    "deletedAt" TIMESTAMP WITH TIME ZONE,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    "isDeleted" BOOLEAN DEFAULT false,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_forum_comments_postid ON forum_comments("postId");
 
--- Table: forum_reactions
+-- Forum Reactions
 CREATE TABLE forum_reactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
     "postId" UUID REFERENCES forum_posts(id) ON DELETE CASCADE,
     "commentId" UUID REFERENCES forum_comments(id) ON DELETE CASCADE,
-    type TEXT DEFAULT 'like',
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-CREATE UNIQUE INDEX idx_forum_reactions_post_user ON forum_reactions("postId", "userId") WHERE "postId" IS NOT NULL;
-CREATE UNIQUE INDEX idx_forum_reactions_comment_user ON forum_reactions("commentId", "userId") WHERE "commentId" IS NOT NULL;
-
--- Table: mood_logs
-CREATE TABLE mood_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
-    date TIMESTAMP WITH TIME ZONE NOT NULL,
-    mood INTEGER,
-    notes TEXT,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE("userId", date)
+    type VARCHAR DEFAULT 'like',
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE ("postId", "userId"),
+    UNIQUE ("commentId", "userId")
 );
 
--- Table: notifications
-CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
-    type TEXT,
-    payload JSONB DEFAULT '{}'::jsonb,
-    "readAt" TIMESTAMP WITH TIME ZONE,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-CREATE INDEX idx_notifications_userid ON notifications("userId");
-
--- Table: resources
-CREATE TABLE resources (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    url TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('video', 'audio', 'article')),
-    categories TEXT[] DEFAULT '{}',
-    tags TEXT[] DEFAULT '{}',
-    language TEXT DEFAULT 'English',
-    duration TEXT,
-    author TEXT,
-    "thumbnailUrl" TEXT,
-    "embedData" JSONB DEFAULT '{}'::jsonb,
-    "isFeatured" BOOLEAN DEFAULT FALSE,
-    priority INTEGER DEFAULT 0,
-    "viewCount" INTEGER DEFAULT 0,
-    "helpfulCount" INTEGER DEFAULT 0,
-    "isActive" BOOLEAN DEFAULT TRUE,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-CREATE INDEX idx_resources_title ON resources(title);
-
--- Table: metrics_daily
+-- Metrics Daily
 CREATE TABLE metrics_daily (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    date TIMESTAMP WITH TIME ZONE UNIQUE NOT NULL,
+    date DATE UNIQUE NOT NULL,
     dau INTEGER,
     sessions INTEGER,
     "journalCount" INTEGER,
-    distribution JSONB DEFAULT '{}'::jsonb
+    distribution JSONB
+);
+
+-- Mood Logs
+CREATE TABLE mood_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    mood INTEGER,
+    notes TEXT,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE ("userId", date)
+);
+
+-- Notifications
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "userId" UUID REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR,
+    payload JSONB,
+    "readAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Resources
+CREATE TABLE resources (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR NOT NULL,
+    description TEXT NOT NULL,
+    url VARCHAR NOT NULL,
+    type VARCHAR NOT NULL,
+    categories TEXT[] DEFAULT '{}',
+    tags TEXT[] DEFAULT '{}',
+    language VARCHAR DEFAULT 'English',
+    duration VARCHAR,
+    author VARCHAR,
+    "thumbnailUrl" VARCHAR,
+    "embedData" JSONB,
+    "isFeatured" BOOLEAN DEFAULT false,
+    priority INTEGER DEFAULT 0,
+    "viewCount" INTEGER DEFAULT 0,
+    "helpfulCount" INTEGER DEFAULT 0,
+    "isActive" BOOLEAN DEFAULT true,
+    "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export declare const updateMoodSchema: z.ZodObject<{
     mood: z.ZodNumber;
     notes: z.ZodOptional<z.ZodString>;

@@ -5,7 +5,7 @@
 export default {
   // Model Configuration
   MODEL: {
-    NAME: process.env.HUGGINGFACE_MODEL || 'zai-org/GLM-4.6',
+    NAME: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
     TEMPERATURE: parseFloat(process.env.AI_TEMPERATURE) || 0.7,
     MAX_TOKENS: parseInt(process.env.AI_MAX_TOKENS) || 500,
     TIMEOUT: parseInt(process.env.AI_TIMEOUT_MS) || 30000

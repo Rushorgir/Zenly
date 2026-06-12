@@ -14,13 +14,26 @@ const generateOTP = () => {
   });
 };
 
+// Helper to parse database timestamps timezone-safely (forcing UTC if timezone offset is missing)
+const parseDbDate = (dateVal) => {
+  if (!dateVal) return new Date(0);
+  if (dateVal instanceof Date) return dateVal;
+  
+  if (typeof dateVal === 'string' && !dateVal.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(dateVal)) {
+    return new Date(dateVal + 'Z');
+  }
+  return new Date(dateVal);
+};
+
 // Map Postgres row to client format
 const formatUser = (user) => {
   if (!user) return null;
+  // eslint-disable-next-line no-unused-vars
   const { id, passwordHash, verificationOTP, otpExpiry, otpAttempts, lastOTPSentAt, ...rest } =
     user;
   return { ...rest, _id: id };
 };
+
 
 // POST /auth/signup
 export const signup = async (req, res) => {
@@ -28,6 +41,7 @@ export const signup = async (req, res) => {
     const { email, password, name, firstName, lastName, university, academicYear } = req.body;
 
     // Check if user already exists
+    // eslint-disable-next-line no-unused-vars
     const { data: existing, error: findError } = await supabase
       .from('users')
       .select('*')
@@ -122,6 +136,7 @@ export const verifyOTP = async (req, res) => {
     }
 
     // Find user with OTP data
+    // eslint-disable-next-line no-unused-vars
     const { data: user, error } = await supabase
       .from('users')
       .select(
@@ -154,7 +169,7 @@ export const verifyOTP = async (req, res) => {
     }
 
     // Check if OTP expired
-    if (new Date() > new Date(user.otpExpiry)) {
+    if (new Date() > parseDbDate(user.otpExpiry)) {
       return res.status(400).json({
         success: false,
         error: 'OTP has expired. Please request a new one.',
@@ -269,7 +284,7 @@ export const resendOTP = async (req, res) => {
 
     // Rate limiting: Prevent sending OTP too frequently (60 seconds)
     if (user.lastOTPSentAt) {
-      const timeSinceLastOTP = Date.now() - new Date(user.lastOTPSentAt).getTime();
+      const timeSinceLastOTP = Date.now() - parseDbDate(user.lastOTPSentAt).getTime();
       if (timeSinceLastOTP < 60 * 1000) {
         const waitTime = Math.ceil((60 * 1000 - timeSinceLastOTP) / 1000);
         return res.status(429).json({

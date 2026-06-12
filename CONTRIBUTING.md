@@ -39,7 +39,7 @@ Frontend: http://localhost:3000  |  Backend: http://localhost:5001
 
 - `frontend/` — Next.js 14 (App Router)
 - `backend/` — Express API + Socket.IO + SSE
-- `start-dev.sh` — Starts MongoDB (macOS/Homebrew), backend, and frontend
+- `start-dev.sh` — Starts backend and frontend
 
 ## Development Guidelines
 

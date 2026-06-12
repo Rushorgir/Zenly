@@ -93,6 +93,7 @@ export const createJournal = async (req, res) => {
 /**
  * Analyze journal in background (async)
  */
+// eslint-disable-next-line no-unused-vars
 async function analyzeJournalInBackground(journalId, _userId) {
   try {
     console.log(`[Journal Controller] Starting background analysis: ${journalId}`);
@@ -111,7 +112,7 @@ async function analyzeJournalInBackground(journalId, _userId) {
           themes: analysis.risk.factors || [],
           suggestedActions: analysis.suggestedActions,
           processedAt: new Date().toISOString(),
-          model: process.env.HUGGINGFACE_MODEL || 'zai-org/GLM-4.6'
+          model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b'
         }
       })
       .eq('id', journalId);
@@ -440,16 +441,24 @@ export const getJournalStats = async (req, res) => {
 function calculateJournalingStreak(journals) {
   if (!journals || journals.length === 0) return 0;
 
+  const parseDbDate = (val) => {
+    if (!val) return new Date(0);
+    if (typeof val === 'string' && !val.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(val)) {
+      return new Date(val + 'Z');
+    }
+    return new Date(val);
+  };
+
   // They are already sorted desc
   let streak = 1;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < journals.length - 1; i++) {
-    const current = new Date(journals[i].createdAt);
+    const current = parseDbDate(journals[i].createdAt);
     current.setHours(0, 0, 0, 0);
 
-    const next = new Date(journals[i + 1].createdAt);
+    const next = parseDbDate(journals[i + 1].createdAt);
     next.setHours(0, 0, 0, 0);
 
     const diffDays = Math.floor((current - next) / (1000 * 60 * 60 * 24));

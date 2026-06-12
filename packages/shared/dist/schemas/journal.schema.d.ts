@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export declare const createJournalSchema: z.ZodObject<{
     content: z.ZodString;
     mood: z.ZodNumber;
