@@ -9,12 +9,11 @@
  * - Caching and performance optimization
  */
 
-import huggingfaceService from './huggingface.service.js';
+import groqService from './groq.service.js';
 import promptsService from './prompts.service.js';
 import crisisDetectionService from './crisis-detection.service.js';
+import { supabase } from '../config/supabase.js';
 import contextBuilderService from './context-builder.service.js';
-import JournalEntry from '../models/journalEntry.model.js';
-import AIConversation from '../models/aiConversation.model.js';
 
 class AIOrchestrator {
   constructor() {
@@ -32,7 +31,7 @@ class AIOrchestrator {
       console.log(`[AI Orchestrator] Starting journal analysis: ${journalId}`);
 
       // Get journal entry
-      const journal = await JournalEntry.findById(journalId);
+      const { data: journal } = await supabase.from('journal_entries').select('*').eq('id', journalId).single();
       if (!journal) {
         throw new Error('Journal not found');
       }
@@ -117,7 +116,7 @@ Provide sentiment analysis in JSON format:
 }`;
 
     try {
-      const response = await huggingfaceService.generateText(prompt, {
+      const response = await groqService.generateText(prompt, {
         temperature: 0.3,
         maxTokens: 200
       });
@@ -144,7 +143,7 @@ Provide sentiment analysis in JSON format:
     const prompt = promptsService.buildJournalAnalysisPrompt(content, context);
 
     try {
-      const response = await huggingfaceService.generateText(prompt, {
+      const response = await groqService.generateText(prompt, {
         temperature: 0.7,
         maxTokens: 300
       });
@@ -171,7 +170,7 @@ Provide sentiment analysis in JSON format:
 Summary:`;
 
     try {
-      const response = await huggingfaceService.generateText(prompt, {
+      const response = await groqService.generateText(prompt, {
         temperature: 0.5,
         maxTokens: 100
       });
@@ -213,7 +212,7 @@ Summary:`;
       console.log(`[AI Orchestrator] Generating chat response for: ${conversationId}`);
 
       // Get conversation
-      const conversation = await AIConversation.findById(conversationId).populate('journalEntryId');
+      const { data: conversation } = await supabase.from('ai_conversations').select('*').eq('id', conversationId).single();
 
       if (!conversation) {
         throw new Error('Conversation not found');
@@ -232,7 +231,7 @@ Summary:`;
       let metadata = {
         isCrisis: crisisCheck.isCrisis,
         riskLevel: crisisCheck.riskLevel,
-        model: process.env.HUGGINGFACE_MODEL || 'zai-org/GLM-4.6'
+        model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b'
       };
 
       // If crisis detected, use crisis response
@@ -248,12 +247,12 @@ Summary:`;
         metadata.crisisHandled = true;
 
         // Update conversation status
-        await AIConversation.findByIdAndUpdate(conversationId, {
+        await supabase.from('ai_conversations').update({
           status: 'crisis',
           crisisDetected: true,
           crisisLevel: crisisCheck.riskLevel,
-          crisisTimestamp: new Date()
-        });
+          updatedAt: new Date().toISOString()
+        }).eq('id', conversationId);
 
         // Alert admins if high risk
         if (crisisCheck.riskLevel === 'high') {
@@ -276,7 +275,7 @@ Summary:`;
           journalContext
         );
 
-        responseText = await huggingfaceService.generateText(prompt, {
+        responseText = await groqService.generateText(prompt, {
           temperature: 0.8,
           maxTokens: 400
         });
@@ -311,7 +310,7 @@ Summary:`;
   async *generateStreamingChatResponse(conversationId, userMessage) {
     try {
       // Get conversation and context
-      const conversation = await AIConversation.findById(conversationId).populate('journalEntryId');
+      const { data: conversation } = await supabase.from('ai_conversations').select('*').eq('id', conversationId).single();
 
       if (!conversation) {
         throw new Error('Conversation not found');
@@ -362,7 +361,7 @@ Summary:`;
         journalContext
       );
 
-      const stream = huggingfaceService.generateTextStream(prompt, {
+      const stream = groqService.generateTextStream(prompt, {
         temperature: 0.8,
         maxTokens: 400
       });
@@ -582,7 +581,7 @@ Provide empathetic, supportive responses that:
         { role: 'user', content: userMessage }
       ];
 
-      const responseText = await huggingfaceService.generateText(messages, {
+      const responseText = await groqService.generateText(messages, {
         temperature: 0.8,
         maxTokens: 500,
         systemRole: 'journal-companion'

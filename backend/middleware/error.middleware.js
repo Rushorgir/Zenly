@@ -3,30 +3,30 @@
  * Should be added as the last middleware in the chain
  */
 
+// eslint-disable-next-line no-unused-vars
 export const errorHandler = (err, req, res, _next) => {
   console.error('Error:', err);
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map((e) => e.message);
+  // Supabase/PostgreSQL validation or bad request errors
+  if (err.code === 'PGRST116' || err.name === 'ValidationError') {
+    const message = Object.values(err.errors || {}).map((val) => val.message).join(', ') || err.message;
     return res.status(400).json({
       error: 'Validation failed',
-      errors
+      message
     });
   }
 
-  // Mongoose duplicate key error
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0];
+  // PostgreSQL duplicate key error
+  if (err.code === '23505' || err.code === 11000) {
     return res.status(409).json({
-      error: `${field} already exists`
+      error: 'Duplicate field value entered'
     });
   }
 
-  // Mongoose cast error (invalid ObjectId)
-  if (err.name === 'CastError') {
+  // Database cast error or invalid UUID
+  if (err.code === '22P02' || err.name === 'CastError') {
     return res.status(400).json({
-      error: 'Invalid ID format'
+      error: 'Resource not found with invalid ID'
     });
   }
 

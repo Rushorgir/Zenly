@@ -1,4 +1,4 @@
-export type SentimentLabel = "positive" | "neutral" | "negative";
+export type SentimentLabel = 'positive' | 'neutral' | 'negative';
 export interface Sentiment {
     score: number;
     label: SentimentLabel;
@@ -6,7 +6,7 @@ export interface Sentiment {
     primaryEmotions?: string[];
     reasoning?: string;
 }
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = 'low' | 'medium' | 'high';
 export interface RiskAssessment {
     level: RiskLevel;
     factors: string[];
@@ -22,7 +22,7 @@ export interface AIAnalysis {
     suggestedActions?: string[];
     processedAt?: string;
 }
-export type JournalStatus = "draft" | "analyzing" | "analyzed" | "error";
+export type JournalStatus = 'draft' | 'analyzing' | 'analyzed' | 'error';
 export interface Journal {
     _id: string;
     content: string;
@@ -36,10 +36,10 @@ export interface Journal {
 }
 export interface Message {
     _id: string;
-    role: "user" | "assistant";
+    role: 'user' | 'assistant';
     content: string;
     createdAt: string;
-    status?: "sending" | "delivered" | "error";
+    status?: 'sending' | 'delivered' | 'error';
     aiMetadata?: {
         isCrisis?: boolean;
         riskLevel?: RiskLevel;

@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase.js';
 // Map Postgres row to client format
 const formatUser = (user) => {
   if (!user) return null;
+  // eslint-disable-next-line no-unused-vars
   const { id, passwordHash, verificationOTP, otpExpiry, otpAttempts, lastOTPSentAt, ...rest } =
     user;
   return { ...rest, _id: id };

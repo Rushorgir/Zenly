@@ -1,4 +1,4 @@
-export type ResourceItemType = "video" | "audio" | "article";
+export type ResourceItemType = 'video' | 'audio' | 'article';
 export interface Resource {
     _id: string;
     title: string;
@@ -23,4 +23,4 @@ export interface FeaturedResources {
     audios: Resource[];
     articles: Resource[];
 }
-export type ResourceSectionType = "videos" | "audios" | "articles";
+export type ResourceSectionType = 'videos' | 'audios' | 'articles';

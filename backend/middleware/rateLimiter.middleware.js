@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 // Rate limiter for OTP generation/sending
 // Allows 3 OTP requests per 15 minutes per IP
@@ -91,7 +91,7 @@ export const forumPostLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 // Rate limiter for adding comments
@@ -104,7 +104,7 @@ export const commentLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 // Rate limiter for liking / reacting
@@ -117,7 +117,7 @@ export const reactionLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 // Rate limiter for reporting posts
@@ -130,7 +130,7 @@ export const reportLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 // Rate limiter for mood logging
@@ -143,7 +143,7 @@ export const moodLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 // Rate limiter for admin creations and edits
@@ -156,7 +156,7 @@ export const adminActionLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId || req.ip
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip)
 });
 
 export default {

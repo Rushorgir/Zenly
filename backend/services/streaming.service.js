@@ -6,8 +6,7 @@
  */
 
 import aiOrchestratorService from './ai-orchestrator.service.js';
-import AIMessage from '../models/aiMessage.model.js';
-import AIConversation from '../models/aiConversation.model.js';
+import { supabase } from '../config/supabase.js';
 
 class StreamingService {
   constructor() {
@@ -44,10 +43,11 @@ class StreamingService {
 
     try {
       // Verify conversation ownership
-      const conversation = await AIConversation.findOne({
-        _id: conversationId,
-        userId
-      });
+      const { data: conversation } = await supabase.from('ai_conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .eq('userId', userId)
+        .single();
 
       if (!conversation) {
         this.sendEvent(res, 'error', {
@@ -57,35 +57,42 @@ class StreamingService {
       }
 
       // Save user message first
-      const userMsg = await AIMessage.create({
+      const { data: userMsg } = await supabase.from('ai_messages').insert({
         conversationId,
+        userId,
         role: 'user',
         content: userMessage,
-        status: 'delivered',
-        createdAt: new Date()
-      });
+        metadata: { status: 'delivered' },
+        createdAt: new Date().toISOString()
+      }).select().single();
 
       this.sendEvent(res, 'message-saved', {
-        messageId: userMsg._id,
+        messageId: userMsg.id,
         role: 'user'
       });
 
       // Create placeholder for AI message
-      const aiMsg = await AIMessage.create({
-        conversationId,
-        role: 'assistant',
-        content: '',
+      const aiMsgData = {
         status: 'sending',
         streaming: {
           isStreaming: true,
           chunksReceived: 0,
           complete: false,
-          startedAt: new Date()
+          startedAt: new Date().toISOString()
         }
-      });
+      };
+
+      const { data: aiMsg } = await supabase.from('ai_messages').insert({
+        conversationId,
+        userId,
+        role: 'assistant',
+        content: '',
+        metadata: aiMsgData,
+        createdAt: new Date().toISOString()
+      }).select().single();
 
       this.sendEvent(res, 'ai-message-started', {
-        messageId: aiMsg._id
+        messageId: aiMsg.id
       });
 
       // Stream the AI response
@@ -110,15 +117,16 @@ class StreamingService {
             this.sendEvent(res, 'chunk', {
               content: event.data.content,
               index: event.data.index,
-              messageId: aiMsg._id
+              messageId: aiMsg.id
             });
 
             // Update message in DB periodically (every 10 chunks)
             if (chunkCount % 10 === 0) {
-              await AIMessage.findByIdAndUpdate(aiMsg._id, {
+              aiMsgData.streaming.chunksReceived = chunkCount;
+              await supabase.from('ai_messages').update({
                 content: fullResponse,
-                'streaming.chunksReceived': chunkCount
-              });
+                metadata: aiMsgData
+              }).eq('id', aiMsg.id);
             }
             break;
 
@@ -130,16 +138,16 @@ class StreamingService {
             this.sendEvent(res, 'crisis', {
               level: event.data.level,
               resources: event.data.resources,
-              messageId: aiMsg._id
+              messageId: aiMsg.id
             });
 
             // Update conversation status
-            await AIConversation.findByIdAndUpdate(conversationId, {
+            await supabase.from('ai_conversations').update({
               status: 'crisis',
               crisisDetected: true,
               crisisLevel: event.data.level,
-              crisisTimestamp: new Date()
-            });
+              updatedAt: new Date().toISOString()
+            }).eq('id', conversationId);
             break;
 
           case 'complete':
@@ -149,32 +157,35 @@ class StreamingService {
             }
 
             // Final update to message
-            await AIMessage.findByIdAndUpdate(aiMsg._id, {
+            aiMsgData.status = 'delivered';
+            aiMsgData.streaming.isStreaming = false;
+            aiMsgData.streaming.complete = true;
+            aiMsgData.streaming.chunksReceived = chunkCount;
+            aiMsgData.streaming.completedAt = new Date().toISOString();
+            if (crisisDetected) {
+              aiMsgData.aiMetadata = {
+                isCrisis: true,
+                riskLevel: crisisData?.level
+              };
+            }
+
+            await supabase.from('ai_messages').update({
               content: fullResponse,
-              status: 'delivered',
-              'streaming.isStreaming': false,
-              'streaming.complete': true,
-              'streaming.chunksReceived': chunkCount,
-              'streaming.completedAt': new Date(),
-              ...(crisisDetected && {
-                'aiMetadata.isCrisis': true,
-                'aiMetadata.riskLevel': crisisData?.level
-              })
-            });
+              metadata: aiMsgData
+            }).eq('id', aiMsg.id);
 
             // Send completion event
             this.sendEvent(res, 'complete', {
-              messageId: aiMsg._id,
+              messageId: aiMsg.id,
               totalChunks: chunkCount,
               finalContent: fullResponse,
               crisisDetected
             });
 
-            // Update conversation stats
-            await AIConversation.findByIdAndUpdate(conversationId, {
-              $inc: { messageCount: 2 }, // User + AI message
-              lastMessageAt: new Date()
-            });
+            // Update conversation stats (we don't have atomic inc easily with RPC unless we define one, so we will read and update or omit messageCount update here since message count is auto-calculated or we do an increment with a separate function, but here we can just update lastMessageAt)
+            await supabase.from('ai_conversations').update({
+              lastMessageAt: new Date().toISOString()
+            }).eq('id', conversationId);
             break;
 
           case 'error':
@@ -197,18 +208,28 @@ class StreamingService {
       });
 
       // Mark message as error
-      const lastMsg = await AIMessage.findOne({ conversationId })
-        .sort({ createdAt: -1 })
-        .where('status')
-        .equals('sending');
+      const { data: messages } = await supabase.from('ai_messages')
+        .select('*')
+        .eq('conversationId', conversationId)
+        .order('createdAt', { ascending: false })
+        .limit(10);
+      
+      const lastMsg = messages?.find(m => m.metadata?.status === 'sending');
 
       if (lastMsg) {
-        await AIMessage.findByIdAndUpdate(lastMsg._id, {
+        const updatedMetadata = {
+          ...lastMsg.metadata,
           status: 'error',
           errorMessage: error.message,
-          'streaming.isStreaming': false,
-          'streaming.complete': false
-        });
+          streaming: {
+            ...lastMsg.metadata?.streaming,
+            isStreaming: false,
+            complete: false
+          }
+        };
+        await supabase.from('ai_messages').update({
+          metadata: updatedMetadata
+        }).eq('id', lastMsg.id);
       }
     } finally {
       // Cleanup
@@ -221,6 +242,7 @@ class StreamingService {
   /**
    * Stream journal analysis progress
    */
+  // eslint-disable-next-line no-unused-vars
   async streamJournalAnalysis(res, journalId, _userId) {
     const streamId = `journal-${journalId}-${Date.now()}`;
 
@@ -327,6 +349,7 @@ class StreamingService {
    */
   getUserActiveStreams(userId) {
     return Array.from(this.activeStreams.entries())
+      // eslint-disable-next-line no-unused-vars
       .filter(([_, stream]) => stream.userId === userId)
       .map(([id, stream]) => ({ id, ...stream }));
   }

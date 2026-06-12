@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export declare const createForumPostSchema: z.ZodObject<{
     title: z.ZodString;
     content: z.ZodString;
