@@ -57,8 +57,8 @@ export const sanitizeUrlSubstrings = (text) => {
   let sanitized = text;
 
   // 1. Sanitize Markdown links [label](url)
-  // Matching [label](url) but supporting one level of nested parentheses
-  const markdownLinkRegex = /\[([^\]]*?)\]\(((?:[^()]+|\([^()]*\))*)\)/g;
+  // Matching [label](url) but supporting nested parentheses safely without backtracking
+  const markdownLinkRegex = /\[([^\]]*?)\]\(([^()\s]*(?:\([^()\s]*\)[^()\s]*)*)\)/g;
   sanitized = sanitized.replace(markdownLinkRegex, (match, label, url) => {
     const sanitizedUrl = sanitizeUrl(url);
     return `[${label}](${sanitizedUrl})`;
